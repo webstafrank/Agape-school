@@ -1,0 +1,28 @@
+# Editor binary — do not commit (373MB, exceeds GitHub limits)
+zed-linux-x86_64/
+*.zip
+
+# Node / Next.js (frontend/)
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+.vercel
+
+# Python / Django (backend/)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.sqlite3
+.pytest_cache/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# OS / logs
+.DS_Store
+*.log
