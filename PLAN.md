@@ -5,8 +5,9 @@ per CLAUDE.md before being checked off.
 
 ## Phase 1 — Foundations
 
-- [ ] Scaffold monorepo: `frontend/` (create-next-app, TS, Tailwind, App Router)
+- [x] Scaffold monorepo: `frontend/` (create-next-app, TS, Tailwind, App Router)
       and `backend/` (Django project + DRF + psycopg + pytest), shared README
+      — frontend typecheck/lint/test/build green; backend pytest/migrations/deploy-check green
 - [ ] Backend: `/api/health/` endpoint + custom User model with role field
       (student/staff/admin) + JWT auth endpoints, with tests
 - [ ] Frontend: design tokens in tailwind.config.ts, next/font setup, base
