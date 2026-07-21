@@ -8,8 +8,9 @@ per CLAUDE.md before being checked off.
 - [x] Scaffold monorepo: `frontend/` (create-next-app, TS, Tailwind, App Router)
       and `backend/` (Django project + DRF + psycopg + pytest), shared README
       — frontend typecheck/lint/test/build green; backend pytest/migrations/deploy-check green
-- [ ] Backend: `/api/health/` endpoint + custom User model with role field
+- [x] Backend: `/api/health/` endpoint + custom User model with role field
       (student/staff/admin) + JWT auth endpoints, with tests
+      — accounts.User (AUTH_USER_MODEL) + JWT (simplejwt, role in claims); 9 tests green
 - [ ] Frontend: design tokens in tailwind.config.ts, next/font setup, base
       layout with header/nav/footer (motto in footer), responsive at 375/768/1280
 - [ ] Frontend: `src/lib/api.ts` client with auth token handling + one test
