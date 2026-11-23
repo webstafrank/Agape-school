@@ -22,8 +22,9 @@ per CLAUDE.md before being checked off.
 - [x] Home page: animated hero with motto "Your future is here", intro to the
       three sections (Kindergarten / Primary / Junior Secondary), CTA to Admissions
       — framer-motion 14.9.1 (pinned); Hero/SectionsIntro/AdmissionsCta/Reveal; reduced-motion + SSR-markup tests
-- [ ] Photo/video slider component (framer-motion, swipe on mobile, lazy media,
+- [x] Photo/video slider component (framer-motion, swipe on mobile, lazy media,
       reduced-motion variant) used on the Home page
+      — MediaSlider + "Life at Agape" section; placeholder slides until real photos (src/content/slides.ts); 10 tests
 - [ ] About page + Academics section with subpages for Kindergarten, Primary,
       and Junior Secondary (content from `src/content/`)
 - [ ] Admissions page with an enquiry form → backend endpoint + admin-visible
