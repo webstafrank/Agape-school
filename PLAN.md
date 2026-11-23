@@ -14,7 +14,8 @@ per CLAUDE.md before being checked off.
 - [x] Frontend: design tokens in tailwind.config.ts, next/font setup, base
       layout with header/nav/footer (motto in footer), responsive at 375/768/1280
       — tokens via Tailwind v4 @config; Fraunces + Nunito Sans; SiteHeader/SiteFooter + src/content/site.ts; 6 tests green
-- [ ] Frontend: `src/lib/api.ts` client with auth token handling + one test
+- [x] Frontend: `src/lib/api.ts` client with auth token handling + one test
+      — JWT login/logout/me/health, bearer header, single-flight refresh-and-retry on 401; 6 tests
 
 ## Phase 2 — Public website
 
