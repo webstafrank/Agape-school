@@ -25,8 +25,9 @@ per CLAUDE.md before being checked off.
 - [x] Photo/video slider component (framer-motion, swipe on mobile, lazy media,
       reduced-motion variant) used on the Home page
       — MediaSlider + "Life at Agape" section; placeholder slides until real photos (src/content/slides.ts); 10 tests
-- [ ] About page + Academics section with subpages for Kindergarten, Primary,
+- [x] About page + Academics section with subpages for Kindergarten, Primary,
       and Junior Secondary (content from `src/content/`)
+      — DRAFT copy (CBC-based) in about.ts/academics.ts with visible Draft notice; static /academics/[section], unknown → 404; 11 tests
 - [ ] Admissions page with an enquiry form → backend endpoint + admin-visible
       list, with spam protection and tests
 - [ ] News & Events: backend model + API, frontend listing and detail pages
