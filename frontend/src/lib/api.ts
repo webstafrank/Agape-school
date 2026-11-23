@@ -159,3 +159,24 @@ export function isLoggedIn(): boolean {
 export function getMe() {
   return apiFetch<User>("/api/auth/me/");
 }
+
+// --- Admissions --------------------------------------------------------------
+
+export type EnquiryInput = {
+  parent_name: string;
+  phone: string;
+  email: string;
+  child_first_name: string;
+  grade: string;
+  start_term: string;
+  message: string;
+  /** Honeypot — must stay empty; filled only by bots. */
+  website: string;
+};
+
+/** Field-level errors from DRF, e.g. { phone: ["Enter a valid phone number…"] }. */
+export type FieldErrors = Partial<Record<keyof EnquiryInput, string[]>>;
+
+export function submitEnquiry(data: EnquiryInput) {
+  return apiFetch<{ ok: true }>("/api/admissions/enquiries/", { method: "POST", body: data, auth: false });
+}

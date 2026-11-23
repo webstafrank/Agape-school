@@ -28,8 +28,9 @@ per CLAUDE.md before being checked off.
 - [x] About page + Academics section with subpages for Kindergarten, Primary,
       and Junior Secondary (content from `src/content/`)
       — DRAFT copy (CBC-based) in about.ts/academics.ts with visible Draft notice; static /academics/[section], unknown → 404; 11 tests
-- [ ] Admissions page with an enquiry form → backend endpoint + admin-visible
+- [x] Admissions page with an enquiry form → backend endpoint + admin-visible
       list, with spam protection and tests
+      — admissions.Enquiry (create-only API, Django admin list); honeypot + per-IP throttle; CORS via django-cors-headers; 25 backend + 6 frontend tests; browser E2E verified
 - [ ] News & Events: backend model + API, frontend listing and detail pages
 - [ ] Gallery: backend media model with admin approval flag; frontend photo
       grid + video section; unapproved media must never render publicly (test this)

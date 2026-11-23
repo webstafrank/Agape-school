@@ -1,6 +1,6 @@
 """URL configuration for config project."""
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 
 from accounts.views import MeView, RoleTokenObtainPairView
@@ -14,6 +14,8 @@ urlpatterns = [
     path('api/auth/token/', RoleTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    # Admissions (public, create-only)
+    path('api/admissions/', include('admissions.urls')),
     # Current user
     path('api/auth/me/', MeView.as_view(), name='me'),
 ]

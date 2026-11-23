@@ -48,9 +48,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Third-party
     'rest_framework',
+    'corsheaders',
     # Local
     'accounts',
     'core',
+    'admissions',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -62,10 +64,18 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    # Number of trusted reverse proxies (set to 1 on Railway/Render). Without it,
+    # clients could spoof X-Forwarded-For to dodge per-IP throttles.
+    'NUM_PROXIES': int(os.environ['NUM_PROXIES']) if os.environ.get('NUM_PROXIES') else None,
+    'DEFAULT_THROTTLE_RATES': {
+        # Public admissions form: per-IP limit to curb spam floods.
+        'enquiries': os.environ.get('ENQUIRY_THROTTLE_RATE', '5/hour'),
+    },
 }
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # must precede CommonMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -147,3 +157,14 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# CORS: only the frontend origins may call the API from a browser.
+# Set CORS_ALLOWED_ORIGINS in production, e.g. "https://agape.example".
+CORS_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        'CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000'
+    ).split(',')
+    if o.strip()
+]

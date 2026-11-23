@@ -50,6 +50,9 @@ curl -sS https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
 | `DEBUG`         | `True`/`False`                             | `True`                    |
 | `ALLOWED_HOSTS` | comma-separated hosts                      | `localhost,127.0.0.1`     |
 | `DATABASE_URL`  | Postgres URL (psycopg); sqlite if unset    | local `db.sqlite3`        |
+| `CORS_ALLOWED_ORIGINS` | comma-separated frontend origins allowed to call the API | `http://localhost:3000,http://127.0.0.1:3000` |
+| `NUM_PROXIES`   | trusted reverse proxies in front of Django — **set to `1` on Railway/Render** so per-IP rate limits can't be spoofed | unset |
+| `ENQUIRY_THROTTLE_RATE` | admissions form limit per client       | `5/hour`                  |
 
 Never commit secrets or real student data. Set production values in the
 Vercel and Railway dashboards.
