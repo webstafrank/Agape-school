@@ -19,8 +19,9 @@ per CLAUDE.md before being checked off.
 
 ## Phase 2 — Public website
 
-- [ ] Home page: animated hero with motto "Your future is here", intro to the
+- [x] Home page: animated hero with motto "Your future is here", intro to the
       three sections (Kindergarten / Primary / Junior Secondary), CTA to Admissions
+      — framer-motion 14.9.1 (pinned); Hero/SectionsIntro/AdmissionsCta/Reveal; reduced-motion + SSR-markup tests
 - [ ] Photo/video slider component (framer-motion, swipe on mobile, lazy media,
       reduced-motion variant) used on the Home page
 - [ ] About page + Academics section with subpages for Kindergarten, Primary,
