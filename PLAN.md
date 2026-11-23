@@ -11,8 +11,9 @@ per CLAUDE.md before being checked off.
 - [x] Backend: `/api/health/` endpoint + custom User model with role field
       (student/staff/admin) + JWT auth endpoints, with tests
       — accounts.User (AUTH_USER_MODEL) + JWT (simplejwt, role in claims); 9 tests green
-- [ ] Frontend: design tokens in tailwind.config.ts, next/font setup, base
+- [x] Frontend: design tokens in tailwind.config.ts, next/font setup, base
       layout with header/nav/footer (motto in footer), responsive at 375/768/1280
+      — tokens via Tailwind v4 @config; Fraunces + Nunito Sans; SiteHeader/SiteFooter + src/content/site.ts; 6 tests green
 - [ ] Frontend: `src/lib/api.ts` client with auth token handling + one test
 
 ## Phase 2 — Public website
