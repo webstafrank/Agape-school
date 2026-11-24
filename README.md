@@ -41,6 +41,8 @@ curl -sS https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
 .venv/bin/python manage.py runserver   # http://localhost:8000
 .venv/bin/pytest                       # tests
 .venv/bin/python manage.py seed_demo_content  # optional: "[Sample]" news/events for local dev
+.venv/bin/python manage.py seed_demo_school   # optional, DEBUG only: demo class, results, timetable, fees
+                                              # + TEST-STU-001 / TEST-STAFF-01 / test-admin (pw: local-dev-only-pw)
 ```
 
 News & events are managed in Django admin (`/admin/` › News › Posts). Only

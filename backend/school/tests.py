@@ -398,3 +398,27 @@ def test_only_students_get_profiles_and_only_staff_teach(w):
         StudentProfile(user=w.teacher_u, school_class=w.class_a).full_clean()
     with pytest.raises(ValidationError):
         TeachingAssignment(teacher=w.student_a, school_class=w.class_a, subject=w.english).full_clean()
+
+
+# ---------------------------------------------------------------- demo seed
+
+def test_seed_demo_school_refuses_in_production(db, settings):
+    from django.core.management import CommandError, call_command
+
+    settings.DEBUG = False
+    with pytest.raises(CommandError):
+        call_command("seed_demo_school")
+    assert not User.objects.filter(username="TEST-STU-001").exists()
+
+
+def test_seed_demo_school_is_idempotent(db, settings):
+    from django.core.management import call_command
+
+    settings.DEBUG = True
+    call_command("seed_demo_school")
+    call_command("seed_demo_school")
+    student = User.objects.get(username="TEST-STU-001")
+    assert Result.objects.filter(student=student).count() == 10
+    assert TimetableEntry.objects.count() == 25
+    resp = client_for(student).get(f"{API}/results/")
+    assert len(resp.json()) == 10

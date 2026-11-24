@@ -52,7 +52,6 @@ describe("PortalShell", () => {
     renderStudentPortal();
     expect(await screen.findByRole("heading", { level: 1, name: "Welcome, Testa" })).toBeInTheDocument();
     expect(screen.getByText("Testa Pupil")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "My results" })).toBeInTheDocument();
     expect(nav.replace).not.toHaveBeenCalled();
   });
 

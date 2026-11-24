@@ -256,3 +256,115 @@ export type GalleryItem = {
 export function getGallery() {
   return apiFetch<GalleryItem[]>("/api/gallery/", { auth: false, revalidate: PUBLIC_REVALIDATE_SECONDS });
 }
+
+// --- School records (portals; always authenticated) ----------------------------
+
+export type SchoolClassInfo = {
+  id: number;
+  name: string;
+  grade: string;
+  grade_label: string;
+  section: string;
+  year: number;
+};
+
+export type SchoolProfile = {
+  id: number;
+  username: string;
+  name: string;
+  role: Role;
+  /** Students only; null if not yet placed in a class. */
+  school_class?: SchoolClassInfo | null;
+};
+
+export type Term = {
+  id: number;
+  year: number;
+  name: string;
+  label: string;
+  start_date: string;
+  end_date: string;
+  is_current: boolean;
+  results_published: boolean;
+};
+
+export type Result = {
+  id: number;
+  student: number;
+  student_name: string;
+  school_class: number;
+  subject: number;
+  subject_name: string;
+  term: number;
+  term_label: string;
+  /** Decimal as a string, e.g. "81.00". */
+  score: string;
+  level: string;
+  level_label: string;
+  comment: string;
+  updated_at: string;
+};
+
+export type Announcement = {
+  id: number;
+  title: string;
+  body: string;
+  school_class: number | null;
+  class_name: string | null;
+  author_name: string | null;
+  published_at: string;
+  updated_at: string;
+};
+
+export type TimetableEntry = {
+  id: number;
+  school_class: number;
+  class_name: string;
+  subject: number;
+  subject_name: string;
+  teacher_name: string | null;
+  /** 1 = Monday … 5 = Friday. */
+  day: number;
+  day_label: string;
+  /** "HH:MM:SS" */
+  start_time: string;
+  end_time: string;
+  room: string;
+};
+
+export type FeeRecord = {
+  id: number;
+  student: number;
+  term: number;
+  term_label: string;
+  amount_due: string;
+  amount_paid: string;
+  balance: string;
+  updated_at: string;
+};
+
+export function getSchoolProfile() {
+  return apiFetch<SchoolProfile>("/api/school/me/");
+}
+
+export function getTerms() {
+  return apiFetch<Term[]>("/api/school/terms/");
+}
+
+/** Students only ever receive their own results for published terms. */
+export function getResults(params: { term?: number } = {}) {
+  const query = params.term ? `?term=${params.term}` : "";
+  return apiFetch<Result[]>(`/api/school/results/${query}`);
+}
+
+export function getAnnouncements() {
+  return apiFetch<Announcement[]>("/api/school/announcements/");
+}
+
+export function getTimetable() {
+  return apiFetch<TimetableEntry[]>("/api/school/timetable/");
+}
+
+export function getFees() {
+  return apiFetch<FeeRecord[]>("/api/school/fees/");
+}

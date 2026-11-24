@@ -49,8 +49,9 @@ per CLAUDE.md before being checked off.
       migrations, and role-scoped API endpoints with object-level permission tests
       (student A must get 403/404 on student B's results)
       — school app (+ StudentProfile, TeachingAssignment, FeeRecord); score 0–100 → CBC level (4-level / JSS 8-level, school/grading.py); results hidden until term published; /api/school/* querysets scoped per role (404 outside scope); 60 tests, mutation-checked
-- [ ] Student portal: dashboard with own profile, results by term, timetable,
+- [x] Student portal: dashboard with own profile, results by term, timetable,
       announcements, fee status
+      — /portal/student overview cards + results (term picker, averages, CBC badges), timetable (week, today highlighted), announcements, fees (KES); loading/error/empty states; seed_demo_school (DEBUG-only); 12 frontend + 2 backend tests; CDP browser E2E 7/7
 - [ ] Staff portal: assigned classes, results entry/edit for own classes only,
       class announcements
 - [ ] Admin portal: manage users, classes, terms; approve gallery media;

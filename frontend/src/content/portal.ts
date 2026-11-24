@@ -29,12 +29,7 @@ export const portals: Record<Role, { title: string; lead: string; tiles: PortalT
   student: {
     title: "Student portal",
     lead: "Your results, timetable, and school news in one place.",
-    tiles: [
-      { title: "My results", text: "See your marks and reports for each term." },
-      { title: "Timetable", text: "Your weekly class schedule." },
-      { title: "Announcements", text: "News from your teachers and the school." },
-      { title: "Fee status", text: "Check what has been paid and what is due." },
-    ],
+    tiles: [],
   },
   staff: {
     title: "Staff portal",
@@ -66,4 +61,62 @@ export const portalShell = {
   retry: "Try again",
   adminTools: "Until these tools are ready, use the Django admin:",
   adminToolsLink: "Open Django admin",
+};
+
+/** Student portal pages. */
+export const studentPortal = {
+  nav: [
+    { href: "/portal/student", label: "Overview" },
+    { href: "/portal/student/results", label: "Results" },
+    { href: "/portal/student/timetable", label: "Timetable" },
+    { href: "/portal/student/announcements", label: "Announcements" },
+    { href: "/portal/student/fees", label: "Fees" },
+  ],
+  noClass: "You haven't been placed in a class yet. Please ask the school office.",
+  loading: "Loading…",
+  error: "We couldn't load this right now.",
+  retry: "Try again",
+  results: {
+    title: "My results",
+    lead: "Your scores and performance levels for each term.",
+    cardTitle: "Latest results",
+    termLabel: "Term",
+    average: "Average score",
+    subject: "Subject",
+    score: "Score",
+    level: "Level",
+    comment: "Teacher's comment",
+    empty: "No results have been released yet. They appear here once the school publishes them.",
+    viewAll: "All results",
+  },
+  timetable: {
+    title: "Timetable",
+    lead: "Your weekly lessons.",
+    cardTitle: "Today's lessons",
+    today: "Today",
+    weekend: "No lessons today — enjoy your weekend!",
+    noLessonsToday: "No lessons scheduled today.",
+    empty: "Your timetable hasn't been added yet.",
+    viewAll: "Full week",
+  },
+  announcements: {
+    title: "Announcements",
+    lead: "News from your teachers and the school.",
+    cardTitle: "Latest announcements",
+    wholeSchool: "Whole school",
+    empty: "No announcements yet.",
+    viewAll: "All announcements",
+  },
+  fees: {
+    title: "Fees",
+    lead: "What has been paid and what is due, by term.",
+    cardTitle: "Fee balance",
+    due: "Amount due",
+    paid: "Paid",
+    balance: "Balance",
+    fullyPaid: "Fully paid — thank you!",
+    empty: "No fee records yet.",
+    viewAll: "Fee details",
+    note: "Questions about fees? Please contact the school office.",
+  },
 };

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { PortalDashboard } from "@/components/PortalDashboard";
 import { PortalShell } from "@/components/PortalShell";
+import { StudentDashboard } from "@/components/StudentDashboard";
 import { portals } from "@/content/portal";
 
 export const metadata: Metadata = { title: portals.student.title };
@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: portals.student.title };
 export default function StudentPortalPage() {
   return (
     <PortalShell role="student">
-      <PortalDashboard role="student" />
+      <StudentDashboard />
     </PortalShell>
   );
 }
