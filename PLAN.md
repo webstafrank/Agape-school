@@ -45,9 +45,10 @@ per CLAUDE.md before being checked off.
 - [x] Login page + role-based routing: students → /portal/student,
       staff → /portal/staff, admin → /portal/admin; logged-out users redirected
       — /login (admission no./staff ID, office-reset message), PortalShell client guard (signed-out → /login?next=, wrong role → own portal, expired → re-login), placeholder dashboards; login throttle 10/min; superusers default to admin (+ data migration); 4 backend + 21 frontend tests; CDP browser E2E 10/10
-- [ ] Backend: Class, Subject, Term, Result, Announcement, Timetable models,
+- [x] Backend: Class, Subject, Term, Result, Announcement, Timetable models,
       migrations, and role-scoped API endpoints with object-level permission tests
       (student A must get 403/404 on student B's results)
+      — school app (+ StudentProfile, TeachingAssignment, FeeRecord); score 0–100 → CBC level (4-level / JSS 8-level, school/grading.py); results hidden until term published; /api/school/* querysets scoped per role (404 outside scope); 60 tests, mutation-checked
 - [ ] Student portal: dashboard with own profile, results by term, timetable,
       announcements, fee status
 - [ ] Staff portal: assigned classes, results entry/edit for own classes only,

@@ -20,6 +20,8 @@ urlpatterns = [
     path('api/news/', include('news.urls')),
     # Gallery (public, read-only, admin-approved media only)
     path('api/gallery/', include('gallery.urls')),
+    # School records for the portals (authenticated, role-scoped)
+    path('api/school/', include('school.urls')),
     # Current user
     path('api/auth/me/', MeView.as_view(), name='me'),
 ]
