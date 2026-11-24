@@ -33,8 +33,9 @@ per CLAUDE.md before being checked off.
       — admissions.Enquiry (create-only API, Django admin list); honeypot + per-IP throttle; CORS via django-cors-headers; 25 backend + 6 frontend tests; browser E2E verified
 - [x] News & Events: backend model + API, frontend listing and detail pages
       — news.Post (news/event, publish gate + scheduling, admin-managed); public read-only API; /news + /news/[slug] ISR 60s with empty/unavailable states; seed_demo_content; TZ Africa/Nairobi; 13 backend + 7 frontend tests
-- [ ] Gallery: backend media model with admin approval flag; frontend photo
+- [x] Gallery: backend media model with admin approval flag; frontend photo
       grid + video section; unapproved media must never render publicly (test this)
+      — gallery.MediaItem by hosted URL (photos from MEDIA_IMAGE_HOSTS, YouTube no-cookie or https video), unapproved by default, admin approve/unapprove actions record approver; public API approved-only; /gallery ISR 60s; 17 backend + 4 frontend tests
 - [ ] Contact page with map, phone, email; global SEO metadata + Open Graph
       images for all public pages
 

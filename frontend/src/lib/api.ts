@@ -232,3 +232,25 @@ export async function getPost(slug: string): Promise<Post | null> {
     throw err;
   }
 }
+
+// --- Gallery -----------------------------------------------------------------
+
+export type GalleryItem = {
+  id: number;
+  kind: "photo" | "video";
+  title: string;
+  caption: string;
+  alt_text: string;
+  /** Hosted media URL (cloud storage or YouTube). */
+  url: string;
+  poster_url: string;
+  width: number | null;
+  height: number | null;
+  /** Set for YouTube videos; rendered as a privacy-enhanced embed. */
+  youtube_id: string | null;
+};
+
+/** Admin-approved gallery media only (the API never returns anything else). */
+export function getGallery() {
+  return apiFetch<GalleryItem[]>("/api/gallery/", { auth: false, revalidate: PUBLIC_REVALIDATE_SECONDS });
+}

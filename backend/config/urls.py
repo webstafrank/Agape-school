@@ -18,6 +18,8 @@ urlpatterns = [
     path('api/admissions/', include('admissions.urls')),
     # News & events (public, read-only, published posts only)
     path('api/news/', include('news.urls')),
+    # Gallery (public, read-only, admin-approved media only)
+    path('api/gallery/', include('gallery.urls')),
     # Current user
     path('api/auth/me/', MeView.as_view(), name='me'),
 ]

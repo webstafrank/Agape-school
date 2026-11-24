@@ -47,6 +47,11 @@ News & events are managed in Django admin (`/admin/` › News › Posts). Only
 posts that are published and whose publish time has passed appear on the site.
 Times entered in admin are Kenya time (`Africa/Nairobi`).
 
+Gallery photos/videos are added in Django admin (Gallery › Gallery items) by
+pasting a hosted link (photos: Cloudinary; videos: YouTube or an https video
+file). New items stay hidden until an admin approves them — only approve media
+with parental consent for any identifiable child.
+
 ### Configuration (environment variables)
 
 | Variable        | Purpose                                    | Default (dev)             |
