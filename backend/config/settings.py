@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'accounts',
     'core',
     'admissions',
+    'news',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -141,7 +142,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# School's local time: admin-entered dates (e.g. event times) are in this zone.
+TIME_ZONE = 'Africa/Nairobi'
 
 USE_I18N = True
 
@@ -167,4 +169,13 @@ CORS_ALLOWED_ORIGINS = [
         'CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000'
     ).split(',')
     if o.strip()
+]
+
+
+# Hosts that admins may link images from (gallery photos, news covers).
+# Must match IMAGE_REMOTE_HOSTS in the frontend so next/image can load them.
+MEDIA_IMAGE_HOSTS = [
+    h.strip().lower()
+    for h in os.environ.get('MEDIA_IMAGE_HOSTS', 'res.cloudinary.com').split(',')
+    if h.strip()
 ]

@@ -40,7 +40,12 @@ curl -sS https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
 .venv/bin/python manage.py migrate
 .venv/bin/python manage.py runserver   # http://localhost:8000
 .venv/bin/pytest                       # tests
+.venv/bin/python manage.py seed_demo_content  # optional: "[Sample]" news/events for local dev
 ```
+
+News & events are managed in Django admin (`/admin/` › News › Posts). Only
+posts that are published and whose publish time has passed appear on the site.
+Times entered in admin are Kenya time (`Africa/Nairobi`).
 
 ### Configuration (environment variables)
 
@@ -53,6 +58,10 @@ curl -sS https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
 | `CORS_ALLOWED_ORIGINS` | comma-separated frontend origins allowed to call the API | `http://localhost:3000,http://127.0.0.1:3000` |
 | `NUM_PROXIES`   | trusted reverse proxies in front of Django — **set to `1` on Railway/Render** so per-IP rate limits can't be spoofed | unset |
 | `ENQUIRY_THROTTLE_RATE` | admissions form limit per client       | `5/hour`                  |
+| `MEDIA_IMAGE_HOSTS` | comma-separated hosts admins may link images from (must match the frontend's `IMAGE_REMOTE_HOSTS`) | `res.cloudinary.com` |
+
+Frontend env vars: `NEXT_PUBLIC_API_URL` (backend base URL) and
+`IMAGE_REMOTE_HOSTS` (image hosts next/image may load; default `res.cloudinary.com`).
 
 Never commit secrets or real student data. Set production values in the
 Vercel and Railway dashboards.

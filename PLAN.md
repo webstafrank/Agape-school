@@ -31,7 +31,8 @@ per CLAUDE.md before being checked off.
 - [x] Admissions page with an enquiry form → backend endpoint + admin-visible
       list, with spam protection and tests
       — admissions.Enquiry (create-only API, Django admin list); honeypot + per-IP throttle; CORS via django-cors-headers; 25 backend + 6 frontend tests; browser E2E verified
-- [ ] News & Events: backend model + API, frontend listing and detail pages
+- [x] News & Events: backend model + API, frontend listing and detail pages
+      — news.Post (news/event, publish gate + scheduling, admin-managed); public read-only API; /news + /news/[slug] ISR 60s with empty/unavailable states; seed_demo_content; TZ Africa/Nairobi; 13 backend + 7 frontend tests
 - [ ] Gallery: backend media model with admin approval flag; frontend photo
       grid + video section; unapproved media must never render publicly (test this)
 - [ ] Contact page with map, phone, email; global SEO metadata + Open Graph

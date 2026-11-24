@@ -70,6 +70,11 @@ type RequestOptions = {
   body?: unknown;
   /** Attach the access token and refresh it on 401. Default: true. */
   auth?: boolean;
+  /**
+   * Server-side only: cache the response in Next's data cache for this many
+   * seconds (incremental static regeneration). Use only for public data.
+   */
+  revalidate?: number;
 };
 
 async function parseBody(res: Response): Promise<unknown> {
@@ -82,7 +87,7 @@ async function parseBody(res: Response): Promise<unknown> {
   }
 }
 
-function send(path: string, { method = "GET", body }: RequestOptions, accessToken?: string) {
+function send(path: string, { method = "GET", body, revalidate }: RequestOptions, accessToken?: string) {
   const headers: Record<string, string> = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
@@ -90,6 +95,7 @@ function send(path: string, { method = "GET", body }: RequestOptions, accessToke
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
+    ...(revalidate === undefined ? {} : { next: { revalidate } }),
   });
 }
 
@@ -179,4 +185,50 @@ export type FieldErrors = Partial<Record<keyof EnquiryInput, string[]>>;
 
 export function submitEnquiry(data: EnquiryInput) {
   return apiFetch<{ ok: true }>("/api/admissions/enquiries/", { method: "POST", body: data, auth: false });
+}
+
+// --- News & events -----------------------------------------------------------
+
+/** How long public pages may serve cached news/gallery data, in seconds. */
+export const PUBLIC_REVALIDATE_SECONDS = 60;
+
+export type PostKind = "news" | "event";
+
+export type PostSummary = {
+  slug: string;
+  kind: PostKind;
+  title: string;
+  summary: string;
+  cover_image_url: string;
+  cover_image_alt: string;
+  /** ISO datetimes; null unless the post is an event. */
+  event_start: string | null;
+  event_end: string | null;
+  event_location: string;
+  published_at: string;
+};
+
+export type Post = PostSummary & {
+  /** Plain text; paragraphs separated by blank lines. */
+  body: string;
+  updated_at: string;
+};
+
+/** Published news and events, newest first. */
+export function getPosts(kind?: PostKind) {
+  const query = kind ? `?kind=${kind}` : "";
+  return apiFetch<PostSummary[]>(`/api/news/${query}`, { auth: false, revalidate: PUBLIC_REVALIDATE_SECONDS });
+}
+
+/** One published post, or null if it doesn't exist or isn't published. */
+export async function getPost(slug: string): Promise<Post | null> {
+  try {
+    return await apiFetch<Post>(`/api/news/${encodeURIComponent(slug)}/`, {
+      auth: false,
+      revalidate: PUBLIC_REVALIDATE_SECONDS,
+    });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
 }

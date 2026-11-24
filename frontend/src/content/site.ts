@@ -15,6 +15,9 @@ export const site = {
   description:
     "Agape Education Center — Kindergarten, Primary, and Junior Secondary. Your future is here.",
   sections: ["Kindergarten", "Primary", "Junior Secondary"],
+  /** Dates and times on the site are shown in the school's local time. */
+  timeZone: "Africa/Nairobi",
+  locale: "en-KE",
   contact: {
     // Placeholder details — replace with the school's real contact info.
     phone: "+254 700 000 000",

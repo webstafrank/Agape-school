@@ -16,6 +16,8 @@ urlpatterns = [
     path('api/auth/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     # Admissions (public, create-only)
     path('api/admissions/', include('admissions.urls')),
+    # News & events (public, read-only, published posts only)
+    path('api/news/', include('news.urls')),
     # Current user
     path('api/auth/me/', MeView.as_view(), name='me'),
 ]

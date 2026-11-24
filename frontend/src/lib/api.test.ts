@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { API_BASE_URL, ApiError, getHealth, getMe, isLoggedIn, login, logout, tokenStore } from "./api";
+import { API_BASE_URL, ApiError, getHealth, getMe, getPost, getPosts, isLoggedIn, login, logout, tokenStore } from "./api";
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -90,5 +90,25 @@ describe("api client", () => {
     expect(err.status).toBe(401);
     expect(err.data).toEqual({ detail: "No active account found" });
     expect(tokenStore.get()).toBeNull();
+  });
+
+  it("fetches public posts without a token and with ISR caching", async () => {
+    tokenStore.set({ access: "a1", refresh: "r1" });
+    fetchMock.mockResolvedValueOnce(json(200, []));
+
+    await expect(getPosts("event")).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API_BASE_URL}/api/news/?kind=event`,
+      expect.objectContaining({ next: { revalidate: 60 } }),
+    );
+    expect(authHeader(0)).toBeUndefined();
+  });
+
+  it("getPost returns null for a missing post but rethrows other errors", async () => {
+    fetchMock.mockResolvedValueOnce(json(404, { detail: "Not found." }));
+    await expect(getPost("nope")).resolves.toBeNull();
+
+    fetchMock.mockResolvedValueOnce(json(500, {}));
+    await expect(getPost("boom")).rejects.toBeInstanceOf(ApiError);
   });
 });
