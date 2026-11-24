@@ -72,6 +72,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         # Public admissions form: per-IP limit to curb spam floods.
         'enquiries': os.environ.get('ENQUIRY_THROTTLE_RATE', '5/hour'),
+        # Portal sign-in attempts per client IP.
+        'login': os.environ.get('LOGIN_THROTTLE_RATE', '10/minute'),
     },
 }
 

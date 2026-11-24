@@ -10,6 +10,8 @@ export type Role = "student" | "staff" | "admin";
 export type User = {
   id: number;
   username: string;
+  first_name: string;
+  last_name: string;
   email: string;
   role: Role;
 };

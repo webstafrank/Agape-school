@@ -11,6 +11,16 @@ def api():
     return APIClient()
 
 
+@pytest.fixture(autouse=True)
+def clear_throttle_cache():
+    # Login throttle counts live in the cache; isolate each test.
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
 def test_user_defaults_to_student_role(db):
     user = User.objects.create_user(username="pupil", password="pw-not-real-123")
     assert user.role == User.Role.STUDENT
@@ -70,3 +80,36 @@ def test_me_returns_own_profile_when_authenticated(api, db):
     assert resp.status_code == 200
     assert resp.data["username"] == "carol"
     assert resp.data["role"] == "admin"
+
+
+# ---- Portal sign-in support ----
+
+def test_createsuperuser_gets_admin_role(db):
+    boss = User.objects.create_superuser("boss", "boss@example.com", "pw-not-real-123")
+    assert boss.role == User.Role.ADMIN
+
+
+def test_superuser_role_can_still_be_set_explicitly(db):
+    u = User.objects.create_superuser("tech", "t@example.com", "pw-not-real-123", role=User.Role.STAFF)
+    assert u.role == User.Role.STAFF
+
+
+def test_me_includes_names_for_the_portal_greeting(api, db):
+    user = User.objects.create_user(username="ADM001", password="pw-not-real-123", first_name="Testa", last_name="Pupil")
+    api.force_authenticate(user)
+    data = api.get(reverse("me")).json()
+    assert data["first_name"] == "Testa" and data["last_name"] == "Pupil"
+
+
+def test_login_attempts_are_throttled(api, db):
+    User.objects.create_user(username="dave", password="pw-not-real-123")
+    url = reverse("token_obtain_pair")
+    codes = [
+        api.post(url, {"username": "dave", "password": "wrong"}, format="json").status_code
+        for _ in range(11)
+    ]
+    assert codes[:10] == [401] * 10
+    assert codes[10] == 429
+    # Even the right password is refused until the window passes.
+    ok = api.post(url, {"username": "dave", "password": "pw-not-real-123"}, format="json")
+    assert ok.status_code == 429
