@@ -16,7 +16,9 @@ from .models import (
     is_assigned,
     staff_class_ids,
 )
-from .permissions import ADMIN, STAFF, role_of
+from .permissions import ADMIN, STAFF, PublishedResultsLockedForStaff, role_of
+
+PUBLISHED_LOCKED = PublishedResultsLockedForStaff.message
 
 
 def display_name(user) -> str:
@@ -94,6 +96,8 @@ class ResultSerializer(serializers.ModelSerializer):
             user = self.context["request"].user
             if role_of(user) == STAFF and not is_assigned(user, attrs["school_class"], attrs["subject"]):
                 raise PermissionDenied("You can only enter results for classes and subjects you teach.")
+            if role_of(user) == STAFF and attrs["term"].results_published:
+                raise PermissionDenied(PUBLISHED_LOCKED)
             profile = StudentProfile.objects.filter(user=attrs["student"]).first()
             if not profile or profile.school_class_id != attrs["school_class"].id:
                 raise serializers.ValidationError({"student": "This student is not in that class."})
@@ -108,18 +112,81 @@ class ResultSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
+class SheetEntrySerializer(serializers.Serializer):
+    student = serializers.IntegerField()
+    # Blank/null score = no result for this student (an existing one is removed).
+    score = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0, max_value=100,
+                                     allow_null=True, required=False)
+    comment = serializers.CharField(max_length=300, allow_blank=True, required=False, default="")
+
+
+class ResultSheetSerializer(serializers.Serializer):
+    """A whole class mark sheet for one subject and term, saved all-or-nothing."""
+
+    school_class = serializers.PrimaryKeyRelatedField(queryset=SchoolClass.objects.all())
+    subject = serializers.PrimaryKeyRelatedField(queryset=Subject.objects.all())
+    term = serializers.PrimaryKeyRelatedField(queryset=Term.objects.all())
+    entries = SheetEntrySerializer(many=True, allow_empty=False, max_length=200)
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        cls, subject, term = attrs["school_class"], attrs["subject"], attrs["term"]
+        if role_of(user) == STAFF:
+            if not is_assigned(user, cls, subject):
+                raise PermissionDenied("You can only enter results for classes and subjects you teach.")
+            if term.results_published:
+                raise PermissionDenied(PUBLISHED_LOCKED)
+        in_class = set(StudentProfile.objects.filter(school_class=cls).values_list("user_id", flat=True))
+        seen, errors = set(), []
+        for entry in attrs["entries"]:
+            err = {}
+            if entry["student"] not in in_class:
+                err["student"] = ["This student is not in that class."]
+            elif entry["student"] in seen:
+                err["student"] = ["This student appears more than once."]
+            seen.add(entry["student"])
+            errors.append(err)
+        if any(errors):
+            raise serializers.ValidationError({"entries": errors})
+        return attrs
+
+    def save(self):
+        from django.db import transaction
+
+        data, user = self.validated_data, self.context["request"].user
+        key = {"school_class": data["school_class"], "subject": data["subject"], "term": data["term"]}
+        with transaction.atomic():
+            for entry in data["entries"]:
+                score = entry.get("score")
+                if score is None:
+                    Result.objects.filter(student_id=entry["student"], **key).delete()
+                    continue
+                result = Result.objects.filter(student_id=entry["student"], **key).first() or Result(
+                    student_id=entry["student"], **key
+                )
+                result.score, result.comment, result.entered_by = score, entry.get("comment", ""), user
+                result.save()
+        return Result.objects.filter(**key).select_related("student", "subject", "term", "school_class")
+
+
 class AnnouncementSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField()
     class_name = serializers.CharField(source="school_class.name", read_only=True, default=None)
 
     class Meta:
         model = Announcement
-        fields = ("id", "title", "body", "school_class", "class_name", "author_name", "published_at", "updated_at")
+        fields = (
+            "id", "title", "body", "school_class", "class_name", "author_name", "is_mine", "published_at", "updated_at",
+        )
         read_only_fields = ("updated_at",)
         extra_kwargs = {"published_at": {"required": False}}
 
     def get_author_name(self, obj):
         return display_name(obj.author) if obj.author else None
+
+    def get_is_mine(self, obj) -> bool:
+        return obj.author_id == self.context["request"].user.id
 
     def validate_school_class(self, school_class):
         user = self.context["request"].user
@@ -153,7 +220,7 @@ class TimetableEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = TimetableEntry
         fields = (
-            "id", "school_class", "class_name", "subject", "subject_name", "teacher_name", "day", "day_label",
+            "id", "school_class", "class_name", "subject", "subject_name", "teacher", "teacher_name", "day", "day_label",
             "start_time", "end_time", "room",
         )
 

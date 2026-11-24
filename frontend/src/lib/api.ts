@@ -275,6 +275,22 @@ export type SchoolProfile = {
   role: Role;
   /** Students only; null if not yet placed in a class. */
   school_class?: SchoolClassInfo | null;
+  /** Staff only: the class + subject pairs they teach. */
+  assignments?: TeachingAssignment[];
+};
+
+export type TeachingAssignment = {
+  id: number;
+  school_class: number;
+  class_name: string;
+  subject: number;
+  subject_name: string;
+};
+
+/** A class as staff see it (students are never shown to other students). */
+export type StaffClass = SchoolClassInfo & {
+  students: { id: number; username: string; name: string }[];
+  my_subjects: { id: number; name: string; code: string }[];
 };
 
 export type Term = {
@@ -312,6 +328,8 @@ export type Announcement = {
   school_class: number | null;
   class_name: string | null;
   author_name: string | null;
+  /** True if the signed-in user wrote it (and may edit it). */
+  is_mine: boolean;
   published_at: string;
   updated_at: string;
 };
@@ -322,6 +340,7 @@ export type TimetableEntry = {
   class_name: string;
   subject: number;
   subject_name: string;
+  teacher: number | null;
   teacher_name: string | null;
   /** 1 = Monday … 5 = Friday. */
   day: number;
@@ -351,10 +370,45 @@ export function getTerms() {
   return apiFetch<Term[]>("/api/school/terms/");
 }
 
-/** Students only ever receive their own results for published terms. */
-export function getResults(params: { term?: number } = {}) {
-  const query = params.term ? `?term=${params.term}` : "";
-  return apiFetch<Result[]>(`/api/school/results/${query}`);
+/**
+ * Results visible to the signed-in user: students get only their own for
+ * published terms; staff only for the classes and subjects they teach.
+ */
+export function getResults(params: { term?: number; school_class?: number; subject?: number } = {}) {
+  const query = new URLSearchParams(
+    Object.entries(params).flatMap(([k, v]) => (v ? [[k, String(v)]] : [])),
+  ).toString();
+  return apiFetch<Result[]>(`/api/school/results/${query ? `?${query}` : ""}`);
+}
+
+export type SheetEntry = { student: number; score: number | null; comment: string };
+
+/** Saves a class mark sheet all-or-nothing. A null score removes that result. */
+export function saveResultSheet(sheet: { school_class: number; subject: number; term: number; entries: SheetEntry[] }) {
+  return apiFetch<Result[]>("/api/school/results/sheet/", { method: "POST", body: sheet });
+}
+
+/** Staff: the classes they teach or lead, with student lists. */
+export function getClasses() {
+  return apiFetch<StaffClass[]>("/api/school/classes/");
+}
+
+export function getClass(id: number) {
+  return apiFetch<StaffClass>(`/api/school/classes/${id}/`);
+}
+
+export type AnnouncementInput = { title: string; body: string; school_class: number | null };
+
+export function createAnnouncement(data: AnnouncementInput) {
+  return apiFetch<Announcement>("/api/school/announcements/", { method: "POST", body: data });
+}
+
+export function updateAnnouncement(id: number, data: Partial<AnnouncementInput>) {
+  return apiFetch<Announcement>(`/api/school/announcements/${id}/`, { method: "PATCH", body: data });
+}
+
+export function deleteAnnouncement(id: number) {
+  return apiFetch<null>(`/api/school/announcements/${id}/`, { method: "DELETE" });
 }
 
 export function getAnnouncements() {

@@ -11,7 +11,8 @@ const copy = studentPortal.timetable;
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const loadTimetable = () => getTimetable();
 
-export function LessonList({ lessons }: { lessons: TimetableEntry[] }) {
+/** Lessons in time order. Shows teacher + room, or class + room for staff. */
+export function LessonList({ lessons, showClass = false }: { lessons: TimetableEntry[]; showClass?: boolean }) {
   return (
     <ol className="space-y-2">
       {lessons.map((l) => (
@@ -21,9 +22,9 @@ export function LessonList({ lessons }: { lessons: TimetableEntry[] }) {
             <time dateTime={l.end_time}>{formatClock(l.end_time)}</time>
           </p>
           <p className="font-bold text-primary-900">{l.subject_name}</p>
-          {(l.teacher_name || l.room) && (
+          {(showClass || l.teacher_name || l.room) && (
             <p className="flex flex-wrap gap-x-2 text-sm text-ink-muted">
-              {[l.teacher_name, l.room].filter(Boolean).map((part) => (
+              {[showClass ? l.class_name : l.teacher_name, l.room].filter(Boolean).map((part) => (
                 <span key={part} className="whitespace-nowrap">{part}</span>
               ))}
             </p>

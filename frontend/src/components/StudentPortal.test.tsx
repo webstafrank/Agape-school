@@ -36,7 +36,7 @@ const RESULTS = [
            level_label: "Approaching Expectations" }),
 ];
 const lesson = (o: Partial<TimetableEntry>): TimetableEntry => ({
-  id: 1, school_class: 1, class_name: "Grade 5 Demo", subject: 1, subject_name: "Mathematics", teacher_name: "Tutor Example",
+  id: 1, school_class: 1, class_name: "Grade 5 Demo", subject: 1, subject_name: "Mathematics", teacher: 9, teacher_name: "Tutor Example",
   day: 1, day_label: "Monday", start_time: "08:00:00", end_time: "08:35:00", room: "Room 5", ...o,
 });
 const TIMETABLE = [
@@ -45,7 +45,7 @@ const TIMETABLE = [
   lesson({ id: 3, day: 1, subject_name: "Art" }),
 ];
 const notice = (o: Partial<Announcement>): Announcement => ({
-  id: 1, title: "Notice", body: "Body", school_class: null, class_name: null, author_name: "Tutor Example",
+  id: 1, title: "Notice", body: "Body", school_class: null, class_name: null, author_name: "Tutor Example", is_mine: false,
   published_at: "2026-11-20T07:00:00Z", updated_at: "2026-11-20T07:00:00Z", ...o,
 });
 const fee = (o: Partial<FeeRecord>): FeeRecord => ({

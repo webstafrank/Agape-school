@@ -52,8 +52,9 @@ per CLAUDE.md before being checked off.
 - [x] Student portal: dashboard with own profile, results by term, timetable,
       announcements, fee status
       — /portal/student overview cards + results (term picker, averages, CBC badges), timetable (week, today highlighted), announcements, fees (KES); loading/error/empty states; seed_demo_school (DEBUG-only); 12 frontend + 2 backend tests; CDP browser E2E 7/7
-- [ ] Staff portal: assigned classes, results entry/edit for own classes only,
+- [x] Staff portal: assigned classes, results entry/edit for own classes only,
       class announcements
+      — overview (classes + subjects, my lessons today, latest notices); mark sheet per class/subject/term via atomic POST /results/sheet/ (create/update/clear, row errors); staff locked out of published terms (2 older tests moved to the unpublished term); announcements compose/edit/delete own; 14 backend + 14 frontend tests, mutation-checked; CDP E2E 11/11
 - [ ] Admin portal: manage users, classes, terms; approve gallery media;
       global announcements; edit admissions enquiries status
 

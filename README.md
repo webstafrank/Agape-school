@@ -53,7 +53,8 @@ School records (terms, subjects, classes, students' classes, teaching
 assignments, results, announcements, timetable, fees) are managed in Django
 admin under **School** until the admin portal is built. Students only see a
 term's results after an admin ticks "results published" (or uses the
-"Publish results" action) on that term. CBC score bands live in
+"Publish results" action) on that term. Once published, results are locked
+for teachers; an admin can unpublish the term (or edit in admin) to correct one. CBC score bands live in
 `backend/school/grading.py` — confirm them with the school.
 
 Gallery photos/videos are added in Django admin (Gallery › Gallery items) by

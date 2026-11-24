@@ -1,6 +1,7 @@
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
-from rest_framework import mixins, viewsets
+from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,11 +18,20 @@ from .models import (
     TimetableEntry,
     staff_class_ids,
 )
-from .permissions import ADMIN, STAFF, STUDENT, RoleIn, StudentsReadOnly, role_of
+from .permissions import (
+    ADMIN,
+    STAFF,
+    STUDENT,
+    PublishedResultsLockedForStaff,
+    RoleIn,
+    StudentsReadOnly,
+    role_of,
+)
 from .serializers import (
     AnnouncementSerializer,
     FeeRecordSerializer,
     ResultSerializer,
+    ResultSheetSerializer,
     SchoolClassSerializer,
     SubjectSerializer,
     TermSerializer,
@@ -73,9 +83,10 @@ class SchoolClassViewSet(viewsets.ReadOnlyModelViewSet):
 class ResultViewSet(viewsets.ModelViewSet):
     """Students: own results in published terms (read-only).
     Staff: results for the class+subject pairs they teach (read/write).
-    Admin: everything. Filter with ?term=<id>, ?school_class=<id>, ?subject=<id>."""
+    Admin: everything. Filter with ?term=<id>, ?school_class=<id>, ?subject=<id>.
+    Staff cannot change results once the term is published."""
 
-    permission_classes = (IsAuthenticated, RoleIn, StudentsReadOnly)
+    permission_classes = (IsAuthenticated, RoleIn, StudentsReadOnly, PublishedResultsLockedForStaff)
     allowed_roles = (STUDENT, STAFF, ADMIN)
     serializer_class = ResultSerializer
 
@@ -95,6 +106,14 @@ class ResultViewSet(viewsets.ModelViewSet):
             if value and value.isdigit():
                 qs = qs.filter(**{f"{param}_id": int(value)})
         return qs
+
+    @action(detail=False, methods=["post"])
+    def sheet(self, request):
+        """POST /results/sheet/ — save a class mark sheet (create, update, or clear) atomically."""
+        serializer = ResultSheetSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        results = serializer.save()
+        return Response(ResultSerializer(results, many=True, context={"request": request}).data)
 
 
 class AnnouncementViewSet(viewsets.ModelViewSet):

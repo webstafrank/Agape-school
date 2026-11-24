@@ -60,8 +60,13 @@ class Command(BaseCommand):
             year=year, name="term-2",
             defaults={"start_date": date(year, 4, 28), "end_date": date(year, 8, 1), "results_published": True},
         )
-        Term.objects.filter(is_current=True).exclude(pk=term2.pk).update(is_current=False)
-        Term.objects.filter(pk=term2.pk).update(is_current=True)
+        # Current term is open for results entry (not yet published to students).
+        term3, _ = Term.objects.get_or_create(
+            year=year, name="term-3",
+            defaults={"start_date": date(year, 9, 1), "end_date": date(year, 11, 28), "results_published": False},
+        )
+        Term.objects.filter(is_current=True).exclude(pk=term3.pk).update(is_current=False)
+        Term.objects.filter(pk=term3.pk).update(is_current=True)
 
         subjects = {code: Subject.objects.get_or_create(code=code, defaults={"name": name})[0] for name, code in SUBJECTS}
         cls, _ = SchoolClass.objects.get_or_create(

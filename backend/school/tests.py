@@ -208,21 +208,22 @@ def test_staff_cannot_edit_or_delete_results_in_other_classes(w):
 
 
 def test_staff_edit_changes_score_only(w):
+    # Uses the unpublished term: published results are locked for staff (see lock tests below).
     c = client_for(w.teacher_t)
-    resp = c.patch(f"{API}/results/{w.r_b_pub.id}/",
-                   {"score": 95, "student": w.student_a.id, "subject": w.english.id, "school_class": w.class_b.id},
+    resp = c.patch(f"{API}/results/{w.r_a_hidden.id}/",
+                   {"score": 95, "student": w.student_b.id, "subject": w.english.id, "school_class": w.class_b.id},
                    format="json")
     assert resp.status_code == 200
-    w.r_b_pub.refresh_from_db()
-    assert (w.r_b_pub.score, w.r_b_pub.level) == (95, "EE")
-    assert (w.r_b_pub.student, w.r_b_pub.subject, w.r_b_pub.school_class) == (w.student_b, w.maths, w.class_a)
+    w.r_a_hidden.refresh_from_db()
+    assert (w.r_a_hidden.score, w.r_a_hidden.level) == (95, "EE")
+    assert (w.r_a_hidden.student, w.r_a_hidden.subject, w.r_a_hidden.school_class) == (w.student_a, w.maths, w.class_a)
 
 
 def test_score_must_be_0_to_100_and_unique_per_term(w):
     c = client_for(w.teacher_t)
-    assert c.patch(f"{API}/results/{w.r_b_pub.id}/", {"score": 101}, format="json").status_code == 400
-    dup = {"student": w.student_b.id, "school_class": w.class_a.id, "subject": w.maths.id,
-           "term": w.term_pub.id, "score": 50}
+    assert c.patch(f"{API}/results/{w.r_a_hidden.id}/", {"score": 101}, format="json").status_code == 400
+    dup = {"student": w.student_a.id, "school_class": w.class_a.id, "subject": w.maths.id,
+           "term": w.term_hidden.id, "score": 50}
     assert c.post(f"{API}/results/", dup, format="json").status_code == 400
 
 
@@ -422,3 +423,117 @@ def test_seed_demo_school_is_idempotent(db, settings):
     assert TimetableEntry.objects.count() == 25
     resp = client_for(student).get(f"{API}/results/")
     assert len(resp.json()) == 10
+
+
+# ---------------------------------------------------------------- publish lock
+
+def test_staff_cannot_change_published_results(w):
+    c = client_for(w.teacher_t)
+    assert c.patch(f"{API}/results/{w.r_b_pub.id}/", {"score": 99}, format="json").status_code == 403
+    assert c.delete(f"{API}/results/{w.r_b_pub.id}/").status_code == 403
+    Result.objects.filter(id=w.r_b_pub.id).delete()
+    payload = {"student": w.student_b.id, "school_class": w.class_a.id, "subject": w.maths.id,
+               "term": w.term_pub.id, "score": 50}
+    assert c.post(f"{API}/results/", payload, format="json").status_code == 403
+    assert not Result.objects.filter(student=w.student_b, term=w.term_pub, subject=w.maths).exists()
+
+
+def test_staff_can_still_read_published_results(w):
+    assert client_for(w.teacher_t).get(f"{API}/results/{w.r_b_pub.id}/").status_code == 200
+
+
+def test_admin_can_correct_published_results(w):
+    resp = client_for(w.admin).patch(f"{API}/results/{w.r_b_pub.id}/", {"score": 52}, format="json")
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------- mark sheet
+
+SHEET = f"{API}/results/sheet/"
+
+
+def sheet(w, entries, term=None, cls=None, subject=None):
+    return {"school_class": (cls or w.class_a).id, "subject": (subject or w.maths).id,
+            "term": (term or w.term_hidden).id, "entries": entries}
+
+
+def test_sheet_creates_updates_and_clears_in_one_go(w):
+    # student_a already has 60 in the hidden term; student_b has nothing.
+    resp = client_for(w.teacher_t).post(SHEET, sheet(w, [
+        {"student": w.student_a.id, "score": "88.5", "comment": "Much improved"},
+        {"student": w.student_b.id, "score": 30},
+    ]), format="json")
+    assert resp.status_code == 200, resp.json()
+    by_student = {r["student"]: r for r in resp.json()}
+    assert by_student[w.student_a.id]["level"] == "EE" and by_student[w.student_a.id]["comment"] == "Much improved"
+    assert by_student[w.student_b.id]["level"] == "AE"
+    assert Result.objects.get(student=w.student_b, term=w.term_hidden).entered_by == w.teacher_t
+
+    resp = client_for(w.teacher_t).post(SHEET, sheet(w, [{"student": w.student_a.id, "score": None}]), format="json")
+    assert resp.status_code == 200
+    assert not Result.objects.filter(student=w.student_a, term=w.term_hidden, subject=w.maths).exists()
+
+
+def test_sheet_is_all_or_nothing(w):
+    resp = client_for(w.teacher_t).post(SHEET, sheet(w, [
+        {"student": w.student_a.id, "score": 70},
+        {"student": w.student_b.id, "score": 140},
+    ]), format="json")
+    assert resp.status_code == 400
+    assert resp.json()["entries"][1]["score"]
+    w.r_a_hidden.refresh_from_db()
+    assert w.r_a_hidden.score == 60  # unchanged
+
+
+def test_sheet_rejects_students_outside_the_class_and_duplicates(w):
+    resp = client_for(w.teacher_t).post(SHEET, sheet(w, [
+        {"student": w.student_a.id, "score": 70},
+        {"student": w.student_c.id, "score": 70},
+        {"student": w.student_a.id, "score": 71},
+    ]), format="json")
+    assert resp.status_code == 400
+    errors = resp.json()["entries"]
+    assert errors[0] == {} and "student" in errors[1] and "student" in errors[2]
+    assert not Result.objects.filter(student=w.student_c, term=w.term_hidden).exists()
+    w.r_a_hidden.refresh_from_db()
+    assert w.r_a_hidden.score == 60
+
+
+@pytest.mark.parametrize("who,cls,subject", [
+    ("teacher_t", "class_a", "english"),   # not their subject
+    ("teacher_t", "class_b", "english"),   # not their class
+    ("teacher_u", "class_a", "maths"),     # someone else's assignment
+])
+def test_sheet_only_for_own_assignments(w, who, cls, subject):
+    payload = sheet(w, [{"student": w.student_a.id, "score": 99}], cls=getattr(w, cls), subject=getattr(w, subject))
+    assert client_for(getattr(w, who)).post(SHEET, payload, format="json").status_code == 403
+    assert not Result.objects.filter(score=99).exists()
+
+
+def test_sheet_locked_after_publishing(w):
+    payload = sheet(w, [{"student": w.student_b.id, "score": 10}], term=w.term_pub)
+    assert client_for(w.teacher_t).post(SHEET, payload, format="json").status_code == 403
+    w.r_b_pub.refresh_from_db()
+    assert w.r_b_pub.score == 45
+
+
+def test_students_cannot_use_the_sheet(w):
+    payload = sheet(w, [{"student": w.student_a.id, "score": 100}])
+    assert client_for(w.student_a).post(SHEET, payload, format="json").status_code == 403
+
+
+def test_admin_can_use_the_sheet_on_published_terms(w):
+    payload = sheet(w, [{"student": w.student_b.id, "score": 50}], term=w.term_pub)
+    assert client_for(w.admin).post(SHEET, payload, format="json").status_code == 200
+
+
+# ---------------------------------------------------------------- staff portal fields
+
+def test_announcements_say_which_are_mine(w, notices):
+    data = {a["id"]: a["is_mine"] for a in client_for(w.teacher_t).get(f"{API}/announcements/").json()}
+    assert data[notices["a"].id] is True and data[notices["school"].id] is False
+
+
+def test_timetable_includes_teacher_id(w, lessons):
+    entry = client_for(w.teacher_t).get(f"{API}/timetable/").json()[0]
+    assert entry["teacher"] == w.teacher_t.id
