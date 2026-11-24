@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type Announcement, type Result, type StaffClass, type Term, type TimetableEntry, type User } from "@/lib/api";
 import { MarkSheet } from "./MarkSheet";
-import { StaffAnnouncements } from "./StaffAnnouncements";
+import { AnnouncementManager } from "./AnnouncementManager";
 import { StaffDashboard } from "./StaffDashboard";
 import { StaffResults } from "./StaffResults";
 
@@ -215,7 +215,7 @@ describe("Staff announcements", () => {
   it("posts to a class and refreshes the list", async () => {
     api.createAnnouncement.mockResolvedValueOnce(ann({ id: 3 }));
     const user = userEvent.setup();
-    render(<StaffAnnouncements />);
+    render(<AnnouncementManager />);
     await user.type(await screen.findByLabelText("Title"), "Swimming");
     await user.type(screen.getByLabelText("Message"), "Bring a towel.");
     await user.click(screen.getByRole("button", { name: "Post announcement" }));
@@ -225,7 +225,7 @@ describe("Staff announcements", () => {
   });
 
   it("offers edit and delete only on the teacher's own posts", async () => {
-    render(<StaffAnnouncements />);
+    render(<AnnouncementManager />);
     expect(await screen.findByRole("button", { name: "Edit: Homework" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit: Half-term" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete: Half-term" })).not.toBeInTheDocument();
@@ -234,7 +234,7 @@ describe("Staff announcements", () => {
   it("edits a post in the form", async () => {
     api.updateAnnouncement.mockResolvedValueOnce(ann({ title: "Homework (updated)" }));
     const user = userEvent.setup();
-    render(<StaffAnnouncements />);
+    render(<AnnouncementManager />);
     await user.click(await screen.findByRole("button", { name: "Edit: Homework" }));
     expect(screen.getByRole("heading", { name: "Edit announcement" })).toBeInTheDocument();
     const title = screen.getByLabelText("Title");
@@ -249,7 +249,7 @@ describe("Staff announcements", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
     api.deleteAnnouncement.mockResolvedValueOnce(null);
     const user = userEvent.setup();
-    render(<StaffAnnouncements />);
+    render(<AnnouncementManager />);
     const del = await screen.findByRole("button", { name: "Delete: Homework" });
     await user.click(del);
     expect(api.deleteAnnouncement).not.toHaveBeenCalled();
@@ -262,7 +262,7 @@ describe("Staff announcements", () => {
   it("shows the server's reason if posting is refused", async () => {
     api.createAnnouncement.mockRejectedValueOnce(new ApiError(403, { detail: "You can only post announcements to classes you teach." }));
     const user = userEvent.setup();
-    render(<StaffAnnouncements />);
+    render(<AnnouncementManager />);
     await user.type(await screen.findByLabelText("Title"), "x");
     await user.type(screen.getByLabelText("Message"), "y");
     await user.click(screen.getByRole("button", { name: "Post announcement" }));

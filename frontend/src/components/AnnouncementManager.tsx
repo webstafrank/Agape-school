@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { staffPortal } from "@/content/portal";
+import { adminPortal, staffPortal } from "@/content/portal";
 import {
   ApiError,
   createAnnouncement,
@@ -24,8 +24,12 @@ const fieldClass =
 const loadClasses = () => getClasses();
 const loadList = () => getAnnouncements();
 
-/** Staff: post to own classes; edit or delete only their own posts. */
-export function StaffAnnouncements() {
+/**
+ * Post, edit and delete announcements.
+ * Staff: own classes only, and only their own posts (the API enforces this).
+ * Admin (`schoolWide`, `manageAll`): can also post to the whole school and manage every post.
+ */
+export function AnnouncementManager({ schoolWide = false, manageAll = false }: { schoolWide?: boolean; manageAll?: boolean }) {
   const classes = useApi(loadClasses);
   const list = useApi(loadList);
   const [editing, setEditing] = useState<Announcement | null>(null);
@@ -53,12 +57,13 @@ export function StaffAnnouncements() {
         <h2 id="compose-heading" className="text-2xl font-bold">{editing ? copy.editTitle : copy.formTitle}</h2>
         <AsyncView state={classes} reload={classes.reload}>
           {(list) =>
-            list.length === 0 ? (
+            list.length === 0 && !schoolWide ? (
               <p className="mt-4 text-ink-muted">{copy.noClasses}</p>
             ) : (
               <ComposeForm
                 key={editing?.id ?? "new"}
                 classes={list}
+                schoolWide={schoolWide}
                 editing={editing}
                 onCancel={() => setEditing(null)}
                 onDone={refresh}
@@ -86,7 +91,7 @@ export function StaffAnnouncements() {
                         {toParagraphs(a.body).map((p, i) => (
                           <p key={i} className="mt-2 text-ink">{p}</p>
                         ))}
-                        {a.is_mine && (
+                        {(a.is_mine || manageAll) && (
                           <div className="mt-4 flex gap-3">
                             <button
                               type="button"
@@ -122,11 +127,13 @@ export function StaffAnnouncements() {
 
 function ComposeForm({
   classes,
+  schoolWide,
   editing,
   onCancel,
   onDone,
 }: {
   classes: StaffClass[];
+  schoolWide: boolean;
   editing: Announcement | null;
   onCancel: () => void;
   onDone: (message: string) => void;
@@ -141,7 +148,8 @@ function ComposeForm({
     const data = {
       title: String(fd.get("title") ?? "").trim(),
       body: String(fd.get("body") ?? "").trim(),
-      school_class: Number(fd.get("school_class")),
+      // "" = whole school (admins only; the API refuses it for staff).
+      school_class: fd.get("school_class") ? Number(fd.get("school_class")) : null,
     };
     setBusy(true);
     setError(null);
@@ -171,7 +179,13 @@ function ComposeForm({
       )}
       <div>
         <label htmlFor="ann-class" className="block text-sm font-bold text-primary-900">{copy.classLabel}</label>
-        <select id="ann-class" name="school_class" required defaultValue={editing?.school_class ?? classes[0].id} className={fieldClass}>
+        <select
+          id="ann-class"
+          name="school_class"
+          defaultValue={editing ? (editing.school_class ?? "") : schoolWide ? "" : classes[0].id}
+          className={fieldClass}
+        >
+          {schoolWide && <option value="">{adminPortal.announcements.wholeSchool}</option>}
           {classes.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}

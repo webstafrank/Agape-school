@@ -2,8 +2,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type User } from "@/lib/api";
-import { PortalDashboard } from "./PortalDashboard";
-import { PortalShell } from "./PortalShell";
+import { PortalShell, usePortalUser } from "./PortalShell";
+
+/** Minimal portal page: proves the signed-in user reaches the children. */
+function Greeting() {
+  return <h1>Welcome, {usePortalUser().first_name}</h1>;
+}
 
 // Next's router object is stable across renders; the mock must be too.
 const nav = vi.hoisted(() => {
@@ -33,7 +37,7 @@ beforeEach(() => {
 function renderStudentPortal() {
   return render(
     <PortalShell role="student">
-      <PortalDashboard role="student" />
+      <Greeting />
     </PortalShell>,
   );
 }
@@ -85,19 +89,5 @@ describe("PortalShell", () => {
     await userEvent.setup().click(await screen.findByRole("button", { name: "Log out" }));
     expect(api.logout).toHaveBeenCalled();
     expect(nav.replace).toHaveBeenCalledWith("/login");
-  });
-
-  it("links admins to the Django admin until the admin tools exist", async () => {
-    nav.pathname = "/portal/admin";
-    api.getMe.mockResolvedValueOnce({ ...student, role: "admin" });
-    render(
-      <PortalShell role="admin">
-        <PortalDashboard role="admin" />
-      </PortalShell>,
-    );
-    expect(await screen.findByRole("link", { name: /Open Django admin/ })).toHaveAttribute(
-      "href",
-      expect.stringMatching(/\/admin\/$/),
-    );
   });
 });

@@ -422,3 +422,140 @@ export function getTimetable() {
 export function getFees() {
   return apiFetch<FeeRecord[]>("/api/school/fees/");
 }
+
+// --- Admin portal (role=admin only; the backend refuses everyone else) -------
+
+export type AdminOverview = {
+  students: number;
+  staff: number;
+  classes: number;
+  pending_media: number;
+  new_enquiries: number;
+  unplaced_students: number;
+  current_term: Term | null;
+};
+
+export type AdminUser = {
+  id: number;
+  username: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: Role;
+  is_active: boolean;
+  school_class: number | null;
+  class_name: string | null;
+  last_login: string | null;
+  date_joined: string;
+};
+
+export type AdminUserInput = {
+  username: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: Role;
+  school_class: number | null;
+};
+
+export type AdminClass = {
+  id: number;
+  name: string;
+  grade: string;
+  grade_label: string;
+  year: number;
+  class_teacher: number | null;
+  class_teacher_name: string | null;
+  student_count: number;
+};
+
+export type AdminAssignment = {
+  id: number;
+  teacher: number;
+  teacher_name: string;
+  school_class: number;
+  class_name: string;
+  subject: number;
+  subject_name: string;
+};
+
+export type Subject = { id: number; name: string; code: string };
+
+export type AdminMedia = {
+  id: number;
+  kind: "photo" | "video";
+  title: string;
+  caption: string;
+  alt_text: string;
+  url: string;
+  poster_url: string;
+  youtube_id: string | null;
+  is_approved: boolean;
+  approved_by_name: string | null;
+  approved_at: string | null;
+  created_at: string;
+};
+
+export type EnquiryStatus = "new" | "contacted" | "closed";
+
+export type AdminEnquiry = {
+  id: number;
+  parent_name: string;
+  phone: string;
+  email: string;
+  child_first_name: string;
+  grade: string;
+  grade_label: string;
+  start_term: string;
+  message: string;
+  status: EnquiryStatus;
+  created_at: string;
+};
+
+const qs = (params: Record<string, string | number | undefined>) => {
+  const q = new URLSearchParams(Object.entries(params).flatMap(([k, v]) => (v === undefined || v === "" ? [] : [[k, String(v)]])));
+  const s = q.toString();
+  return s ? `?${s}` : "";
+};
+
+export const adminApi = {
+  overview: () => apiFetch<AdminOverview>("/api/admin/overview/"),
+
+  users: (params: { role?: string; q?: string; school_class?: number } = {}) =>
+    apiFetch<AdminUser[]>(`/api/admin/users/${qs(params)}`),
+  /** Returns the new user plus a one-time password to hand over. */
+  createUser: (data: AdminUserInput) =>
+    apiFetch<AdminUser & { password: string }>("/api/admin/users/", { method: "POST", body: data }),
+  updateUser: (id: number, data: Partial<Omit<AdminUserInput, "username" | "role">> & { is_active?: boolean }) =>
+    apiFetch<AdminUser>(`/api/admin/users/${id}/`, { method: "PATCH", body: data }),
+  resetPassword: (id: number) =>
+    apiFetch<{ password: string }>(`/api/admin/users/${id}/reset-password/`, { method: "POST" }),
+
+  classes: () => apiFetch<AdminClass[]>("/api/admin/classes/"),
+  createClass: (data: { name: string; grade: string; year: number; class_teacher: number | null }) =>
+    apiFetch<AdminClass>("/api/admin/classes/", { method: "POST", body: data }),
+  updateClass: (id: number, data: Partial<{ name: string; grade: string; year: number; class_teacher: number | null }>) =>
+    apiFetch<AdminClass>(`/api/admin/classes/${id}/`, { method: "PATCH", body: data }),
+  deleteClass: (id: number) => apiFetch<null>(`/api/admin/classes/${id}/`, { method: "DELETE" }),
+
+  assignments: (school_class?: number) => apiFetch<AdminAssignment[]>(`/api/admin/assignments/${qs({ school_class })}`),
+  createAssignment: (data: { teacher: number; school_class: number; subject: number }) =>
+    apiFetch<AdminAssignment>("/api/admin/assignments/", { method: "POST", body: data }),
+  deleteAssignment: (id: number) => apiFetch<null>(`/api/admin/assignments/${id}/`, { method: "DELETE" }),
+  subjects: () => apiFetch<Subject[]>("/api/school/subjects/"),
+
+  terms: () => apiFetch<Term[]>("/api/admin/terms/"),
+  createTerm: (data: { year: number; name: string; start_date: string; end_date: string; is_current: boolean }) =>
+    apiFetch<Term>("/api/admin/terms/", { method: "POST", body: data }),
+  updateTerm: (id: number, data: Partial<{ is_current: boolean; results_published: boolean }>) =>
+    apiFetch<Term>(`/api/admin/terms/${id}/`, { method: "PATCH", body: data }),
+
+  media: (status?: "pending" | "approved") => apiFetch<AdminMedia[]>(`/api/admin/media/${qs({ status })}`),
+  setMediaApproved: (id: number, is_approved: boolean) =>
+    apiFetch<AdminMedia>(`/api/admin/media/${id}/`, { method: "PATCH", body: { is_approved } }),
+  deleteMedia: (id: number) => apiFetch<null>(`/api/admin/media/${id}/`, { method: "DELETE" }),
+
+  enquiries: (status?: EnquiryStatus) => apiFetch<AdminEnquiry[]>(`/api/admin/enquiries/${qs({ status })}`),
+  setEnquiryStatus: (id: number, status: EnquiryStatus) =>
+    apiFetch<AdminEnquiry>(`/api/admin/enquiries/${id}/`, { method: "PATCH", body: { status } }),
+};

@@ -22,6 +22,8 @@ urlpatterns = [
     path('api/gallery/', include('gallery.urls')),
     # School records for the portals (authenticated, role-scoped)
     path('api/school/', include('school.urls')),
+    # Admin portal (role=admin only)
+    path('api/admin/', include('adminapi.urls')),
     # Current user
     path('api/auth/me/', MeView.as_view(), name='me'),
 ]

@@ -27,8 +27,11 @@ export function useApi<T>(load: () => Promise<T>): ApiState<T> & { reload: () =>
     };
   }, [load, attempt]);
 
+  // Refetch. Data already on screen stays visible while refreshing (no flash of
+  // "Loading…" after every save); only a first load or a retry after an error
+  // shows the loading state.
   const reload = useCallback(() => {
-    setState({ status: "loading" });
+    setState((prev) => (prev.status === "ready" ? prev : { status: "loading" }));
     setAttempt((n) => n + 1);
   }, []);
 

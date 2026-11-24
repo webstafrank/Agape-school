@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'news',
     'gallery',
     'school',
+    'adminapi',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
