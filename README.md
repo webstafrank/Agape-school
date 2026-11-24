@@ -65,8 +65,10 @@ with parental consent for any identifiable child.
 | `ENQUIRY_THROTTLE_RATE` | admissions form limit per client       | `5/hour`                  |
 | `MEDIA_IMAGE_HOSTS` | comma-separated hosts admins may link images from (must match the frontend's `IMAGE_REMOTE_HOSTS`) | `res.cloudinary.com` |
 
-Frontend env vars: `NEXT_PUBLIC_API_URL` (backend base URL) and
-`IMAGE_REMOTE_HOSTS` (image hosts next/image may load; default `res.cloudinary.com`).
+Frontend env vars: `NEXT_PUBLIC_API_URL` (backend base URL),
+`NEXT_PUBLIC_SITE_URL` (public site URL for canonical links, sitemap, and share
+previews — **set in production**), and `IMAGE_REMOTE_HOSTS` (image hosts
+next/image may load; default `res.cloudinary.com`).
 
 Never commit secrets or real student data. Set production values in the
 Vercel and Railway dashboards.

@@ -5,11 +5,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { Reveal } from "@/components/Reveal";
 import { SectionCard } from "@/components/SectionCard";
 import { academicSections, academicsOverview } from "@/content/academics";
+import { pageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: academicsOverview.title,
-  description: academicsOverview.lead,
-};
+export const metadata: Metadata = pageMetadata({ title: academicsOverview.title, description: academicsOverview.lead, path: "/academics" });
 
 export default function AcademicsPage() {
   return (

@@ -36,8 +36,9 @@ per CLAUDE.md before being checked off.
 - [x] Gallery: backend media model with admin approval flag; frontend photo
       grid + video section; unapproved media must never render publicly (test this)
       — gallery.MediaItem by hosted URL (photos from MEDIA_IMAGE_HOSTS, YouTube no-cookie or https video), unapproved by default, admin approve/unapprove actions record approver; public API approved-only; /gallery ISR 60s; 17 backend + 4 frontend tests
-- [ ] Contact page with map, phone, email; global SEO metadata + Open Graph
+- [x] Contact page with map, phone, email; global SEO metadata + Open Graph
       images for all public pages
+      — DRAFT contact.ts (hours, map query) + Google Maps lazy embed; pageMetadata helper (canonical, OG/Twitter incl. image) on every public page; generated OG card from brand tokens; robots (portals disallowed) + sitemap; NEXT_PUBLIC_SITE_URL; 23 new frontend tests
 
 ## Phase 3 — Portals
 

@@ -6,11 +6,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { Reveal } from "@/components/Reveal";
 import { gallery } from "@/content/gallery";
 import { getGallery, type GalleryItem } from "@/lib/api";
+import { pageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: gallery.title,
-  description: gallery.lead,
-};
+export const metadata: Metadata = pageMetadata({ title: gallery.title, description: gallery.lead, path: "/gallery" });
 
 // Newly approved media appears within a minute, without a redeploy.
 export const revalidate = 60;

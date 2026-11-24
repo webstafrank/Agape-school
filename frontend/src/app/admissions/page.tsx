@@ -4,11 +4,9 @@ import { EnquiryForm } from "@/components/EnquiryForm";
 import { PageHeader } from "@/components/PageHeader";
 import { Reveal } from "@/components/Reveal";
 import { admissions } from "@/content/admissions";
+import { pageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: admissions.title,
-  description: admissions.lead,
-};
+export const metadata: Metadata = pageMetadata({ title: admissions.title, description: admissions.lead, path: "/admissions" });
 
 export default function AdmissionsPage() {
   return (

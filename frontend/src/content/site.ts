@@ -18,6 +18,11 @@ export const site = {
   /** Dates and times on the site are shown in the school's local time. */
   timeZone: "Africa/Nairobi",
   locale: "en-KE",
+  /**
+   * Public URL of the website, used for canonical links, the sitemap, and
+   * social-share previews. Set NEXT_PUBLIC_SITE_URL in production.
+   */
+  url: (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/+$/, ""),
   contact: {
     // Placeholder details — replace with the school's real contact info.
     phone: "+254 700 000 000",

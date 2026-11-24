@@ -104,9 +104,18 @@ describe("News post page", () => {
     expect(screen.getByText("First paragraph.")).toBeInTheDocument();
     expect(screen.getByText("Second paragraph.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /All news & events/ })).toHaveAttribute("href", "/news");
-    await expect(generateMetadata(params("science-fair"))).resolves.toEqual({
+    await expect(generateMetadata(params("science-fair"))).resolves.toMatchObject({
       title: "Science Fair",
       description: "Summary text",
+      alternates: { canonical: "/news/science-fair" },
+      openGraph: { type: "article", url: "/news/science-fair", images: [{ url: "/opengraph-image" }] },
+    });
+  });
+
+  it("uses the cover photo as the share image when there is one", async () => {
+    api.getPost.mockResolvedValue({ ...full, cover_image_url: "https://res.cloudinary.com/demo/a.jpg", cover_image_alt: "Hall" });
+    await expect(generateMetadata(params("science-fair"))).resolves.toMatchObject({
+      openGraph: { images: [{ url: "https://res.cloudinary.com/demo/a.jpg", alt: "Hall" }] },
     });
   });
 

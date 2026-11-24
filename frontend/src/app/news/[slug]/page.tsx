@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { news } from "@/content/news";
 import { getPost } from "@/lib/api";
 import { formatDate, formatEventWhen, toParagraphs } from "@/lib/format";
+import { pageMetadata } from "@/lib/metadata";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -19,7 +20,13 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = await getPost((await params).slug);
   if (!post) return {};
-  return { title: post.title, description: post.summary };
+  return pageMetadata({
+    title: post.title,
+    description: post.summary,
+    path: `/news/${post.slug}`,
+    type: "article",
+    image: post.cover_image_url ? { url: post.cover_image_url, alt: post.cover_image_alt } : undefined,
+  });
 }
 
 export default async function PostPage({ params }: Props) {

@@ -3,6 +3,7 @@ import { Fraunces, Nunito_Sans } from "next/font/google";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { site } from "@/content/site";
+import { baseOpenGraph } from "@/lib/metadata";
 import "./globals.css";
 
 const display = Fraunces({
@@ -17,12 +18,18 @@ const body = Nunito_Sans({
   display: "swap",
 });
 
+const homeTitle = `${site.name} — ${site.motto}`;
+
 export const metadata: Metadata = {
+  metadataBase: new URL(site.url),
   title: {
-    default: `${site.name} — ${site.motto}`,
+    default: homeTitle,
     template: `%s | ${site.name}`,
   },
   description: site.description,
+  applicationName: site.name,
+  openGraph: { ...baseOpenGraph, title: homeTitle, description: site.description },
+  twitter: { card: "summary_large_image", title: homeTitle, description: site.description },
 };
 
 export default function RootLayout({

@@ -3,11 +3,9 @@ import { DraftNotice } from "@/components/DraftNotice";
 import { PageHeader } from "@/components/PageHeader";
 import { Reveal } from "@/components/Reveal";
 import { about } from "@/content/about";
+import { pageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: about.title,
-  description: about.lead,
-};
+export const metadata: Metadata = pageMetadata({ title: about.title, description: about.lead, path: "/about" });
 
 export default function AboutPage() {
   return (

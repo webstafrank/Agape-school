@@ -6,6 +6,7 @@ import { DraftNotice } from "@/components/DraftNotice";
 import { PageHeader } from "@/components/PageHeader";
 import { Reveal } from "@/components/Reveal";
 import { academicSections, academicsOverview, getAcademicSection } from "@/content/academics";
+import { pageMetadata } from "@/lib/metadata";
 
 type Props = { params: Promise<{ section: string }> };
 
@@ -19,7 +20,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const section = getAcademicSection((await params).section);
   if (!section) return {};
-  return { title: `${section.name} — Academics`, description: section.summary };
+  return pageMetadata({ title: `${section.name} — Academics`, description: section.summary, path: `/academics/${section.slug}` });
 }
 
 export default async function AcademicSectionPage({ params }: Props) {

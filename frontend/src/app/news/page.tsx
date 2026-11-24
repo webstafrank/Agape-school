@@ -6,11 +6,9 @@ import { PostCard } from "@/components/PostCard";
 import { Reveal } from "@/components/Reveal";
 import { news } from "@/content/news";
 import { getPosts, type PostSummary } from "@/lib/api";
+import { pageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: news.title,
-  description: news.lead,
-};
+export const metadata: Metadata = pageMetadata({ title: news.title, description: news.lead, path: "/news" });
 
 // Regenerate at most once a minute so new posts appear without a redeploy.
 export const revalidate = 60;
