@@ -27,3 +27,6 @@ urlpatterns = [
     # Current user
     path('api/auth/me/', MeView.as_view(), name='me'),
 ]
+
+handler404 = 'core.views.not_found'
+handler500 = 'core.views.server_error'

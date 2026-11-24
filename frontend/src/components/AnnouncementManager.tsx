@@ -3,7 +3,6 @@
 import { useState, type FormEvent } from "react";
 import { adminPortal, staffPortal } from "@/content/portal";
 import {
-  ApiError,
   createAnnouncement,
   deleteAnnouncement,
   getAnnouncements,
@@ -13,6 +12,7 @@ import {
   type StaffClass,
 } from "@/lib/api";
 import { toParagraphs } from "@/lib/format";
+import { actionError } from "@/lib/errors";
 import { useApi } from "@/lib/useApi";
 import { AsyncView } from "./AsyncView";
 import { EmptyState } from "./EmptyState";
@@ -46,8 +46,8 @@ export function AnnouncementManager({ schoolWide = false, manageAll = false }: {
     try {
       await deleteAnnouncement(a.id);
       refresh(copy.deleted);
-    } catch {
-      setNotice(copy.failed);
+    } catch (err) {
+      setNotice(actionError(err, copy.failed));
     }
   }
 
@@ -163,8 +163,7 @@ function ComposeForm({
         onDone(copy.posted);
       }
     } catch (err) {
-      const detail = err instanceof ApiError ? (err.data as { detail?: string })?.detail : undefined;
-      setError(detail ?? copy.failed);
+      setError(actionError(err, copy.failed));
     } finally {
       setBusy(false);
     }

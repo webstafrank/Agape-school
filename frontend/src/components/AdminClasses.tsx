@@ -3,8 +3,9 @@
 import { useCallback, useState, type FormEvent } from "react";
 import { gradeOptions } from "@/content/admissions";
 import { adminPortal } from "@/content/portal";
-import { ApiError, adminApi, type AdminClass, type AdminUser, type Subject } from "@/lib/api";
+import { adminApi, type AdminClass, type AdminUser, type Subject } from "@/lib/api";
 import { dangerButton, fieldClass, labelClass, panelClass, primaryButton, secondaryButton } from "@/lib/styles";
+import { actionError } from "@/lib/errors";
 import { useApi } from "@/lib/useApi";
 import { AsyncView } from "./AsyncView";
 import { EmptyState } from "./EmptyState";
@@ -12,13 +13,6 @@ import { EmptyState } from "./EmptyState";
 const copy = adminPortal.classes;
 const loadSetup = () => Promise.all([adminApi.classes(), adminApi.users({ role: "staff" }), adminApi.subjects()]);
 
-function errorText(err: unknown) {
-  if (err instanceof ApiError && err.data && typeof err.data === "object") {
-    const msgs = Object.values(err.data as Record<string, string[] | string>).flat();
-    if (msgs.length) return msgs.join(" ");
-  }
-  return copy.failed;
-}
 
 const staffName = (u: AdminUser) => [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username;
 
@@ -42,7 +36,7 @@ export function AdminClasses() {
       setMessage(copy.saved);
       state.reload();
     } catch (err) {
-      setMessage(errorText(err));
+      setMessage(actionError(err, copy.failed));
     }
   }
 
@@ -153,7 +147,7 @@ function ClassDetail({
       assignments.reload();
       onChanged(copy.saved);
     } catch (err) {
-      setError(errorText(err));
+      setError(actionError(err, copy.failed));
     }
   }
 

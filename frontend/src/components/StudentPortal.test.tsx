@@ -139,7 +139,8 @@ describe("Student dashboard", () => {
     api.getFees.mockRejectedValueOnce(new TypeError("fetch failed")).mockResolvedValueOnce([fee({})]);
     render(<StudentDashboard />);
     const fees = screen.getByRole("region", { name: "Fee balance" });
-    expect(await within(fees).findByRole("alert")).toHaveTextContent("couldn't load");
+    // A network failure says so (was a vague "couldn't load" before the Phase 4 error work).
+    expect(await within(fees).findByRole("alert")).toHaveTextContent("Check your internet connection");
     expect(await screen.findByText("Science")).toBeInTheDocument();
     await userEvent.setup().click(within(fees).getByRole("button", { name: "Try again" }));
     expect(await within(fees).findByText("Ksh 17,500")).toBeInTheDocument();

@@ -61,7 +61,8 @@ per CLAUDE.md before being checked off.
 
 ## Phase 4 — Polish and deploy
 
-- [ ] Loading, empty, and error states for every portal page; friendly 404/500
+- [x] Loading, empty, and error states for every portal page; friendly 404/500
+      — not-found/error/global-error pages (Next 16 unstable_retry, digest shown, no raw message); portal errors classified (session ended → sign-in link back, forbidden, offline, server) + shared actionError for every action, mark sheet keeps scores on session expiry; API JSON 404/500 when DEBUG=False; news detail moved off ISR (failed first ISR render gave a bare 500) — verified on a prod build; 4 backend + 19 frontend tests
 - [ ] Accessibility pass: keyboard nav, focus states, contrast, alt text,
       reduced-motion honored everywhere
 - [ ] Performance pass: next/image everywhere, route-level code splitting,

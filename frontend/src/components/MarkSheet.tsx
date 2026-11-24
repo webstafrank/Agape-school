@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { staffPortal } from "@/content/portal";
 import { ApiError, saveResultSheet, type Result, type SheetEntry, type StaffClass, type Term } from "@/lib/api";
+import { actionError, describeError } from "@/lib/errors";
 import { LevelBadge } from "./LevelBadge";
 
 const copy = staffPortal.results;
@@ -98,11 +99,10 @@ export function MarkSheet({
         });
         setErrors(mapped);
         setStatus({ kind: "error", message: copy.rowErrors });
-      } else if (err instanceof ApiError && err.status === 403) {
-        const detail = (err.data as { detail?: string })?.detail;
-        setStatus({ kind: "error", message: detail ?? copy.saveFailed });
       } else {
-        setStatus({ kind: "error", message: copy.saveFailed });
+        const session = describeError(err).kind === "session";
+        // Scores stay on screen either way; nothing typed is lost.
+        setStatus({ kind: "error", message: session ? copy.sessionEnded : actionError(err, copy.saveFailed) });
       }
     }
   }

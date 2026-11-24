@@ -3,8 +3,9 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useState, type FormEvent } from "react";
 import { adminPortal } from "@/content/portal";
-import { ApiError, adminApi, type AdminClass, type AdminUser, type Role } from "@/lib/api";
+import { adminApi, type AdminClass, type AdminUser, type Role } from "@/lib/api";
 import { fieldClass, labelClass, panelClass, primaryButton, secondaryButton } from "@/lib/styles";
+import { actionError } from "@/lib/errors";
 import { useApi } from "@/lib/useApi";
 import { AsyncView } from "./AsyncView";
 import { EmptyState } from "./EmptyState";
@@ -15,13 +16,6 @@ const copy = adminPortal.users;
 const ROLES: Role[] = ["student", "staff", "admin"];
 const loadClasses = () => adminApi.classes();
 
-function errorText(err: unknown): string {
-  if (err instanceof ApiError && err.data && typeof err.data === "object") {
-    const msgs = Object.values(err.data as Record<string, string[] | string>).flat();
-    if (msgs.length) return msgs.join(" ");
-  }
-  return copy.failed;
-}
 
 export function AdminUsers() {
   const params = useSearchParams();
@@ -126,7 +120,7 @@ function AddUserForm({
       });
       onCreated(created);
     } catch (err) {
-      setError(errorText(err));
+      setError(actionError(err, copy.failed));
       setBusy(false);
     }
   }
@@ -222,7 +216,7 @@ function UserRow({
       setMessage(copy.saved);
       onSaved();
     } catch (err) {
-      setMessage(errorText(err));
+      setMessage(actionError(err, copy.failed));
     } finally {
       setBusy(false);
     }
@@ -234,7 +228,7 @@ function UserRow({
       const { password } = await adminApi.resetPassword(user.id);
       onPassword({ username: user.username, password });
     } catch (err) {
-      setMessage(errorText(err));
+      setMessage(actionError(err, copy.failed));
     }
   }
 

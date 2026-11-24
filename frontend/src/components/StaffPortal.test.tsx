@@ -129,6 +129,17 @@ describe("MarkSheet", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("only enter results for classes and subjects you teach");
   });
 
+  it("keeps typed scores and explains what to do if the session ended", async () => {
+    api.saveResultSheet.mockRejectedValueOnce(new ApiError(401, { detail: "Token is invalid" }));
+    const user = userEvent.setup();
+    render(<MarkSheet cls={CLASS} subject={1} term={term()} initialResults={[]} />);
+    await user.type(screen.getByLabelText("Score for Testa Example"), "88");
+    await user.click(screen.getByRole("button", { name: "Save results" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Your scores are still here");
+    expect(screen.getByLabelText("Score for Testa Example")).toHaveValue(88);
+    expect(screen.getByRole("button", { name: "Save results" })).toBeEnabled();
+  });
+
   it("locks a published term", () => {
     render(<MarkSheet cls={CLASS} subject={1} term={term({ results_published: true })} initialResults={EXISTING} />);
     expect(screen.getByRole("note")).toHaveTextContent("published, so they're locked");

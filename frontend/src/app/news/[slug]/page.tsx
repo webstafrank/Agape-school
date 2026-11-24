@@ -10,15 +10,20 @@ import { pageMetadata } from "@/lib/metadata";
 
 type Props = { params: Promise<{ slug: string }> };
 
-// Posts are rendered on first request, then cached and refreshed every minute.
-export const revalidate = 60;
-
-export function generateStaticParams() {
-  return [];
-}
+// Rendered per request; the API response itself is cached for a minute (see
+// getPost). Not ISR: a failed first ISR render returns a bare 500 instead of
+// the friendly error.tsx page, e.g. while the API is briefly unreachable.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const post = await getPost((await params).slug);
+  let post;
+  try {
+    post = await getPost((await params).slug);
+  } catch {
+    // Metadata is resolved outside the page's error boundary: if the API is
+    // down, fall back to the default title and let the page show error.tsx.
+    return {};
+  }
   if (!post) return {};
   return pageMetadata({
     title: post.title,

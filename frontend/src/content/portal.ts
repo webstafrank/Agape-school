@@ -145,6 +145,8 @@ export const staffPortal = {
     noAssignments: "You haven't been assigned any classes or subjects yet. Please ask an administrator.",
     rowErrors: "Some rows need fixing — see the highlighted students.",
     saveFailed: "Your results weren't saved. Please try again.",
+    sessionEnded:
+      "Your session has ended, so nothing was saved. Your scores are still here: sign in again in a new tab, then press Save results.",
     blankHint: "Leave a score blank for no result. Clearing a score removes that result.",
   },
   announcements: {

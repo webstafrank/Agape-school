@@ -119,6 +119,12 @@ describe("News post page", () => {
     });
   });
 
+  it("falls back to default metadata if the API is down (so error.tsx can render)", async () => {
+    api.getPost.mockRejectedValue(new TypeError("fetch failed"));
+    await expect(generateMetadata(params("any"))).resolves.toEqual({});
+    await expect(PostPage(params("any"))).rejects.toThrow("fetch failed");
+  });
+
   it("404s for an unknown or unpublished post", async () => {
     api.getPost.mockResolvedValue(null);
     await expect(PostPage(params("draft"))).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });

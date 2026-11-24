@@ -6,6 +6,7 @@ import { adminPortal } from "@/content/portal";
 import { adminApi, type AdminMedia } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { dangerButton, primaryButton, secondaryButton } from "@/lib/styles";
+import { actionError } from "@/lib/errors";
 import { useApi } from "@/lib/useApi";
 import { AsyncView } from "./AsyncView";
 import { EmptyState } from "./EmptyState";
@@ -45,8 +46,8 @@ export function AdminGallery() {
     try {
       await action();
       state.reload();
-    } catch {
-      setError(copy.failed);
+    } catch (err) {
+      setError(actionError(err, copy.failed));
     }
   }
 

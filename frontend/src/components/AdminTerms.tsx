@@ -2,9 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { adminPortal } from "@/content/portal";
-import { ApiError, adminApi, type Term } from "@/lib/api";
+import { adminApi, type Term } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { fieldClass, labelClass, panelClass, primaryButton, secondaryButton } from "@/lib/styles";
+import { actionError } from "@/lib/errors";
 import { useApi } from "@/lib/useApi";
 import { AsyncView } from "./AsyncView";
 import { EmptyState } from "./EmptyState";
@@ -12,13 +13,6 @@ import { EmptyState } from "./EmptyState";
 const copy = adminPortal.terms;
 const load = () => adminApi.terms();
 
-function errorText(err: unknown) {
-  if (err instanceof ApiError && err.data && typeof err.data === "object") {
-    const msgs = Object.values(err.data as Record<string, string[] | string>).flat();
-    if (msgs.length) return msgs.join(" ");
-  }
-  return copy.failed;
-}
 
 export function AdminTerms() {
   const state = useApi(load);
@@ -30,7 +24,7 @@ export function AdminTerms() {
       setMessage(null);
       state.reload();
     } catch (err) {
-      setMessage(errorText(err));
+      setMessage(actionError(err, copy.failed));
     }
   }
 

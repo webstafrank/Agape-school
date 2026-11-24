@@ -5,6 +5,7 @@ import { adminPortal } from "@/content/portal";
 import { adminApi, type AdminEnquiry, type EnquiryStatus } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { fieldClass, labelClass } from "@/lib/styles";
+import { actionError } from "@/lib/errors";
 import { useApi } from "@/lib/useApi";
 import { AsyncView } from "./AsyncView";
 import { EmptyState } from "./EmptyState";
@@ -23,8 +24,8 @@ export function AdminEnquiries() {
       await adminApi.setEnquiryStatus(e.id, status);
       setMessage(`${copy.saved} (${e.parent_name}: ${copy.statuses[status]})`);
       state.reload();
-    } catch {
-      setMessage(copy.failed);
+    } catch (err) {
+      setMessage(actionError(err, copy.failed));
     }
   }
 
