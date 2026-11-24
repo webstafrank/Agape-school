@@ -16,7 +16,7 @@ import sitemap from "./sitemap";
 // next/font is a build-time transform; stub it so the layout module can load.
 vi.mock("next/font/google", () => {
   const font = () => ({ variable: "font-var", className: "font-class" });
-  return { Fraunces: font, Nunito_Sans: font };
+  return { Comfortaa: font, Nunito_Sans: font };
 });
 
 const api = vi.hoisted(() => ({ getPosts: vi.fn() }));

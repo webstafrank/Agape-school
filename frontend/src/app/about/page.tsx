@@ -56,7 +56,7 @@ export default function AboutPage() {
       <section aria-labelledby="welcome-heading" className="bg-primary-900 py-16 text-ink-inverse">
         <Reveal className="mx-auto max-w-3xl px-4 sm:px-6">
           <h2 id="welcome-heading" className="text-3xl font-bold text-ink-inverse">{about.welcome.heading}</h2>
-          <blockquote className="mt-6 border-l-4 border-accent-400 pl-5 font-display text-xl italic leading-relaxed text-primary-50">
+          <blockquote className="mt-6 border-l-4 border-accent-400 pl-5 font-display text-xl leading-relaxed text-primary-50">
             {about.welcome.text}
           </blockquote>
           <p className="mt-4 font-bold text-accent-300">— {about.welcome.signature}</p>

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Fraunces, Nunito_Sans } from "next/font/google";
+import { Comfortaa, Nunito_Sans } from "next/font/google";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { site } from "@/content/site";
 import { baseOpenGraph } from "@/lib/metadata";
 import "./globals.css";
 
-const display = Fraunces({
+const display = Comfortaa({
   variable: "--font-display",
   subsets: ["latin"],
   display: "swap",

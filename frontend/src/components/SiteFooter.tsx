@@ -9,7 +9,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-content gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
         <div>
           <p className="font-display text-xl font-bold text-ink-inverse">{site.name}</p>
-          <p className="mt-2 font-display text-lg italic text-accent-300">{site.motto}</p>
+          <p className="mt-2 font-display text-lg font-bold text-accent-300">{site.motto}</p>
           <p className="mt-3 text-sm text-primary-200">{site.sections.join(" · ")}</p>
         </div>
 
