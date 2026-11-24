@@ -88,4 +88,9 @@ describe("grade options", () => {
     const backendValues = [...gradeBlock.matchAll(/=\s*"([^"]+)",\s*"/g)].map((m) => m[1]);
     expect(gradeOptions.map((g) => g.value)).toEqual(backendValues);
   });
+
+  it("posts (never GETs) if submitted before JavaScript loads, so family details stay out of URLs", () => {
+    const { container } = render(<EnquiryForm />);
+    expect(container.querySelector("form")).toHaveAttribute("method", "post");
+  });
 });

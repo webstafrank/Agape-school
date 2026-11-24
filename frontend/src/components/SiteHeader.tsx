@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { mainNav, portalLink, site } from "@/content/site";
 
 function isActive(pathname: string, href: string) {
@@ -12,6 +12,20 @@ function isActive(pathname: string, href: string) {
 export function SiteHeader() {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  // Escape closes the mobile menu and returns focus to its button.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        toggleRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const linkClass = (href: string) =>
     `rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
@@ -56,6 +70,7 @@ export function SiteHeader() {
         </nav>
 
         <button
+          ref={toggleRef}
           type="button"
           className="inline-flex items-center justify-center rounded-md p-2 text-ink-inverse hover:bg-primary-800 lg:hidden"
           aria-expanded={open}

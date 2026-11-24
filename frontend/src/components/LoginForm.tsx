@@ -61,7 +61,9 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5">
+    // method="post": if someone submits before JavaScript has loaded, the browser
+    // must never put the password in the URL (history, server logs).
+    <form onSubmit={onSubmit} method="post" className="space-y-5">
       {expired && !error && (
         <p role="status" className="rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 font-semibold text-primary-900">
           {copy.expired}

@@ -40,8 +40,15 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${display.variable} ${body.variable} h-full`}>
       <body className="flex min-h-full flex-col">
+        {/* First Tab stop: lets keyboard users jump past the navigation. */}
+        <a
+          href="#main"
+          className="sr-only z-50 rounded-full bg-accent-400 px-5 py-3 font-bold text-primary-950 focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
+          Skip to main content
+        </a>
         <SiteHeader />
-        <main id="main" className="flex flex-1 flex-col">
+        <main id="main" tabIndex={-1} className="flex flex-1 flex-col outline-none">
           {children}
         </main>
         <SiteFooter />

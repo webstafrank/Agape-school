@@ -93,4 +93,9 @@ describe("LoginForm", () => {
     render(<LoginForm />);
     expect(screen.getByText(/contact the school office/)).toBeInTheDocument();
   });
+
+  it("posts (never GETs) if submitted before JavaScript loads, so passwords stay out of URLs", () => {
+    const { container } = render(<LoginForm />);
+    expect(container.querySelector("form")).toHaveAttribute("method", "post");
+  });
 });

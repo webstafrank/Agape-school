@@ -86,7 +86,8 @@ export function EnquiryForm() {
     errors[name] ? { "aria-invalid": true as const, "aria-describedby": `enquiry-${name}-error` } : {};
 
   return (
-    <form onSubmit={onSubmit} noValidate={false} aria-describedby="enquiry-intro" className="space-y-5">
+    // method="post": a submit before JavaScript loads must not put family details in the URL.
+    <form onSubmit={onSubmit} method="post" aria-describedby="enquiry-intro" className="space-y-5">
       <p id="enquiry-intro" className="text-ink-muted">{admissions.form.intro}</p>
 
       {formError && (

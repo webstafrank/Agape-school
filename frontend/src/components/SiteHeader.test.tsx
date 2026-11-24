@@ -48,3 +48,17 @@ describe("SiteHeader", () => {
     expect(screen.queryByRole("navigation", { name: "Mobile" })).not.toBeInTheDocument();
   });
 });
+
+describe("SiteHeader keyboard support", () => {
+  it("Escape closes the mobile menu and returns focus to its button", async () => {
+    const user = userEvent.setup();
+    render(<SiteHeader />);
+    const toggle = screen.getByRole("button", { name: "Open menu" });
+    await user.click(toggle);
+    expect(screen.getByRole("navigation", { name: "Mobile" })).toBeInTheDocument();
+    await user.tab();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("navigation", { name: "Mobile" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open menu" })).toHaveFocus();
+  });
+});

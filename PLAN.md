@@ -63,8 +63,9 @@ per CLAUDE.md before being checked off.
 
 - [x] Loading, empty, and error states for every portal page; friendly 404/500
       — not-found/error/global-error pages (Next 16 unstable_retry, digest shown, no raw message); portal errors classified (session ended → sign-in link back, forbidden, offline, server) + shared actionError for every action, mark sheet keeps scores on session expiry; API JSON 404/500 when DEBUG=False; news detail moved off ISR (failed first ISR render gave a bare 500) — verified on a prod build; 4 backend + 19 frontend tests
-- [ ] Accessibility pass: keyboard nav, focus states, contrast, alt text,
+- [x] Accessibility pass: keyboard nav, focus states, contrast, alt text,
       reduced-motion honored everywhere
+      — real-browser axe sweep (WCAG 2.2 AA) of all 26 public + portal pages at 375/1280: 0 violations; fixed: focus ring was not rendering at all → two-colour ring (dark outline + light halo, >=3:1 on any bg), skip link, Escape closes mobile menu; found + fixed pre-hydration GET leaking password/family details into URLs (forms now POST); permanent axe tests in npm test (axe-core 4.12.1), mutation-checked; CDP keyboard E2E 12/12
 - [ ] Performance pass: next/image everywhere, route-level code splitting,
       Lighthouse ≥ 90 on Home for performance and accessibility
 - [ ] Deploy backend to Railway with production Postgres, env vars, DEBUG=False,
