@@ -55,8 +55,9 @@ per CLAUDE.md before being checked off.
 - [x] Staff portal: assigned classes, results entry/edit for own classes only,
       class announcements
       — overview (classes + subjects, my lessons today, latest notices); mark sheet per class/subject/term via atomic POST /results/sheet/ (create/update/clear, row errors); staff locked out of published terms (2 older tests moved to the unpublished term); announcements compose/edit/delete own; 14 backend + 14 frontend tests, mutation-checked; CDP E2E 11/11
-- [ ] Admin portal: manage users, classes, terms; approve gallery media;
+- [x] Admin portal: manage users, classes, terms; approve gallery media;
       global announcements; edit admissions enquiries status
+      — adminapi app (/api/admin/*, admin-only): users (create w/ one-time generated password, class placement, deactivate, reset), classes + teaching assignments, terms (current/publish), media approve/hide/delete, enquiry status, overview counts; 7 portal pages; subjects/timetable/fees stay in Django admin; useApi keeps data on refresh; 57 backend + 15 frontend tests, mutation-checked; CDP E2E 16/16
 
 ## Phase 4 — Polish and deploy
 

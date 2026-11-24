@@ -49,9 +49,11 @@ News & events are managed in Django admin (`/admin/` › News › Posts). Only
 posts that are published and whose publish time has passed appear on the site.
 Times entered in admin are Kenya time (`Africa/Nairobi`).
 
-School records (terms, subjects, classes, students' classes, teaching
-assignments, results, announcements, timetable, fees) are managed in Django
-admin under **School** until the admin portal is built. Students only see a
+Day-to-day school admin happens in the **admin portal** (`/portal/admin`):
+users (with one-time generated passwords), classes and teaching assignments,
+terms and publishing results, gallery approvals, school-wide announcements,
+and admissions enquiries. Subjects, timetables, fees, news posts, and adding
+gallery media are managed in Django admin. Students only see a
 term's results after an admin ticks "results published" (or uses the
 "Publish results" action) on that term. Once published, results are locked
 for teachers; an admin can unpublish the term (or edit in admin) to correct one. CBC score bands live in
