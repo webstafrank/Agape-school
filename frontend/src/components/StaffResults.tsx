@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { staffPortal } from "@/content/portal";
 import { getClass, getResultGrid, getResults, getSchoolProfile, getTerms } from "@/lib/api";
+import { registerUnsavedWork } from "@/lib/leaveGuard";
 import { useApi } from "@/lib/useApi";
 import { AsyncView } from "./AsyncView";
 import { EmptyState } from "./EmptyState";
@@ -42,6 +43,9 @@ function ResultsPicker({ assignments, terms }: { assignments: Assignments; terms
   const onDirtyChange = useCallback((d: boolean) => {
     dirty.current = d;
   }, []);
+
+  // Lets page-wide actions such as Log out ask first (src/lib/leaveGuard.ts).
+  useEffect(() => registerUnsavedWork(() => dirty.current), []);
 
   // In-app links (portal tabs, header) navigate client-side, so `beforeunload` never fires.
   // Catch them in the capture phase, before Next's Link handler, and ask first.

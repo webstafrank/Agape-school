@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { portalShell as copy } from "@/content/portal";
 import { ApiError, getMe, isLoggedIn, logout, type Role, type User } from "@/lib/api";
+import { confirmLeave } from "@/lib/leaveGuard";
 import { portalPath } from "@/lib/portal";
 
 const PortalUserContext = createContext<User | null>(null);
@@ -92,6 +93,8 @@ export function PortalShell({ role, children }: { role: Role; children: ReactNod
   const displayName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username;
 
   function onLogout() {
+    // Signing out navigates client-side, so the browser's own unsaved-work prompt never shows.
+    if (!confirmLeave()) return;
     logout();
     router.replace("/login");
   }

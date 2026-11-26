@@ -44,6 +44,7 @@ export const portalShell = {
   logout: "Log out",
   unavailable: "We couldn't reach the school server. Please check your connection and try again.",
   retry: "Try again",
+  leaveUnsaved: "You have unsaved changes on this page. Leave without saving them?",
 };
 
 /** Student portal pages. */

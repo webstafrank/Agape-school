@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiErrors } from "@/content/errors";
 import { ApiError, type GridResult, type ResultGrid as Grid, type Term } from "@/lib/api";
+import { hasUnsavedWork } from "@/lib/leaveGuard";
 import { expectNoA11yViolations } from "@/test/axe";
 import { ResultsGrid } from "./ResultsGrid";
 import { StaffResults } from "./StaffResults";
@@ -351,6 +352,40 @@ describe("ResultsGrid", () => {
     expect(box("Mathematics", "Testo Example")).toHaveAttribute("aria-invalid", "true");
   });
 
+  it("accepts a comma decimal from phone keypads and sends it as a number", async () => {
+    api.saveResultGrid.mockResolvedValueOnce(grid());
+    const user = userEvent.setup();
+    render(<ResultsGrid grid={grid()} />);
+    await user.type(box("Mathematics", "Testo Example"), "64,5");
+    await user.tab();
+    expect(box("Mathematics", "Testo Example")).not.toHaveAttribute("aria-invalid");
+    await user.click(saveButton());
+    expect(api.saveResultGrid.mock.calls[0][0].cells).toEqual([{ student: 12, subject: 1, score: 64.5 }]);
+  });
+
+  it("sends one save even if two submits land in the same tick", async () => {
+    api.saveResultGrid.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    render(<ResultsGrid grid={grid()} />);
+    await user.type(box("Mathematics", "Testo Example"), "70");
+    const form = saveButton().closest("form")!;
+    act(() => {
+      form.requestSubmit();
+      form.requestSubmit();
+    });
+    expect(api.saveResultGrid).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Ctrl+S from opening the browser's Save page dialog on a locked term", () => {
+    render(<ResultsGrid grid={grid({ locked: true, term: { ...TERM, results_published: true } })} />);
+    const keydown = new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true, cancelable: true });
+    act(() => {
+      document.body.dispatchEvent(keydown);
+    });
+    expect(keydown.defaultPrevented).toBe(true);
+    expect(api.saveResultGrid).not.toHaveBeenCalled();
+  });
+
   it("rounds averages half up despite floating point (0.15 -> 0.2, not 0.1)", async () => {
     const user = userEvent.setup();
     render(<ResultsGrid grid={grid({ results: [] })} />);
@@ -472,6 +507,17 @@ describe("StaffResults table view", () => {
     expect(confirm).toHaveBeenCalledWith("You have unsaved changes on this page. Leave without saving them?");
     expect(screen.getByLabelText("Mathematics score for Testo Example")).toHaveValue("70");
     expect(click()).toBe(true); // confirmed: allowed through
+  });
+
+  it("tells page-wide actions such as Log out that there are unsaved scores", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<StaffResults />);
+    await screen.findByRole("table");
+    expect(hasUnsavedWork()).toBe(false);
+    await user.type(screen.getByLabelText("Mathematics score for Testo Example"), "70");
+    expect(hasUnsavedWork()).toBe(true);
+    unmount();
+    expect(hasUnsavedWork()).toBe(false);
   });
 
   it("switches without asking when nothing is unsaved", async () => {

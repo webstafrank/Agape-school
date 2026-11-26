@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type User } from "@/lib/api";
+import { registerUnsavedWork } from "@/lib/leaveGuard";
 import { PortalShell, usePortalUser } from "./PortalShell";
 
 /** Minimal portal page: proves the signed-in user reaches the children. */
@@ -89,5 +90,23 @@ describe("PortalShell", () => {
     await userEvent.setup().click(await screen.findByRole("button", { name: "Log out" }));
     expect(api.logout).toHaveBeenCalled();
     expect(nav.replace).toHaveBeenCalledWith("/login");
+  });
+
+  it("asks before logging out over unsaved work, and stays signed in if cancelled", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const off = registerUnsavedWork(() => true); // e.g. a results table with typed scores
+    api.getMe.mockResolvedValueOnce(student);
+    renderStudentPortal();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Log out" }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(api.logout).not.toHaveBeenCalled();
+    expect(nav.replace).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Log out" }));
+    expect(api.logout).toHaveBeenCalled();
+    expect(nav.replace).toHaveBeenCalledWith("/login");
+    off();
+    confirm.mockRestore();
   });
 });

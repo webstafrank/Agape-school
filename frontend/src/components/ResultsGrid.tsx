@@ -26,7 +26,8 @@ const SCORE = /^((0|[1-9]\d{0,2})(\.\d{1,2})?|\.\d{1,2})$/;
 
 /** null = blank (no result), undefined = not a valid score. */
 function parseScore(value: string): number | null | undefined {
-  const t = value.trim();
+  // A comma decimal ("64,5") comes from some phone keypads: treat it as a dot.
+  const t = value.trim().replace(",", ".");
   if (t === "") return null;
   if (!SCORE.test(t)) return undefined;
   const n = Number(t);
@@ -65,6 +66,7 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const saveButton = useRef<HTMLButtonElement>(null);
   // Latest typed values, read after an await so keystrokes made during a save survive it.
+  const inFlight = useRef(false);
   const latest = useRef<Values>(values);
   useEffect(() => {
     latest.current = values;
@@ -198,7 +200,8 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
   }
 
   async function save() {
-    if (saving || locked || !dirty) return;
+    // The ref is set synchronously, so two submits in the same tick can't both get through.
+    if (inFlight.current || saving || locked || !dirty) return;
     const blocking = [...new Set([...invalid, ...errorKeys])];
     if (blocking.length) {
       setAttempted(true);
@@ -214,6 +217,7 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
       score: parseScore(value) as number | null,
     }));
     setStatus({ kind: "saving" });
+    inFlight.current = true;
     try {
       const fresh = await saveResultGrid({ school_class: grid.school_class.id, term: grid.term.id, cells });
       // Keep anything typed while the save was in flight; everything else shows what was saved.
@@ -246,6 +250,8 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
         const session = describeError(err).kind === "session";
         setStatus({ kind: "error", message: session ? copy.sessionEnded : actionError(err, copy.saveFailed) });
       }
+    } finally {
+      inFlight.current = false;
     }
   }
 
@@ -260,17 +266,15 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
     saveRef.current = save;
   });
   useEffect(() => {
-    if (locked) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "s") {
-        e.preventDefault();
+        e.preventDefault(); // even when locked: the hint promises Ctrl+S is ours on this page
         void saveRef.current();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [locked]);
-
+  }, []);
 
   const caption = copy.caption(grid.school_class.name, grid.term.label);
   const captionId = `grid-caption-${grid.school_class.id}-${grid.term.id}`;
