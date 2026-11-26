@@ -314,6 +314,9 @@ describe("ResultsGrid", () => {
     expect(box("Mathematics", "Testo Example")).toHaveValue("70");
     expect(next).toHaveValue("55"); // not wiped by the fresh table
     expect(description(next)).toContain("Unsaved");
+    // ...and the status must not claim everything is up to date.
+    expect(screen.getByRole("status")).toHaveTextContent("Saved 1 score. 1 change made while saving is not saved yet.");
+    expect(screen.getByRole("status")).not.toHaveTextContent("up to date");
     expect(description(box("Mathematics", "Testo Example"))).not.toContain("Unsaved");
     expect(api.saveResultGrid.mock.calls[0][0].cells).toEqual([{ student: 12, subject: 1, score: 70 }]);
   });
@@ -338,6 +341,40 @@ describe("ResultsGrid", () => {
     await user.keyboard("{Control>}s{/Control}");
     expect(api.saveResultGrid).not.toHaveBeenCalled();
     expect(english).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it.each(["100.", "007", "1.", "1.234", "+5"])("rejects the malformed score %j", async (bad) => {
+    const user = userEvent.setup();
+    render(<ResultsGrid grid={grid()} />);
+    await user.type(box("Mathematics", "Testo Example"), bad);
+    await user.tab();
+    expect(box("Mathematics", "Testo Example")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("rounds averages half up despite floating point (0.15 -> 0.2, not 0.1)", async () => {
+    const user = userEvent.setup();
+    render(<ResultsGrid grid={grid({ results: [] })} />);
+    await user.type(box("Mathematics", "Testo Example"), ".15");
+    expect(averageOf("Testo Example")).toHaveTextContent("0.2");
+  });
+
+  it("saves with Ctrl+S even when focus is outside the table", async () => {
+    api.saveResultGrid.mockResolvedValueOnce(grid());
+    const user = userEvent.setup();
+    render(
+      <>
+        <button type="button">Elsewhere</button>
+        <ResultsGrid grid={grid()} />
+      </>,
+    );
+    await user.type(box("Mathematics", "Testo Example"), "70");
+    await user.click(screen.getByRole("button", { name: "Elsewhere" }));
+    const keydown = new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true, cancelable: true });
+    await act(async () => {
+      document.body.dispatchEvent(keydown);
+    });
+    expect(keydown.defaultPrevented).toBe(true); // no browser "Save page" dialog
+    expect(api.saveResultGrid).toHaveBeenCalledTimes(1);
   });
 
   it("scrolls inside its own positioned box with the class averages pinned to the bottom", () => {
@@ -412,6 +449,29 @@ describe("StaffResults table view", () => {
     expect(confirm).toHaveBeenCalled();
     expect(nav.replace).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Comment for Testa Example")).toHaveValue("Good effort");
+  });
+
+  it("asks before an in-app link throws away unsaved scores", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const user = userEvent.setup();
+    render(
+      <>
+        <a href="/portal/staff">Overview</a>
+        <StaffResults />
+      </>,
+    );
+    const link = screen.getByRole("link", { name: "Overview" });
+    const click = () => link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+
+    await screen.findByRole("table");
+    expect(click()).toBe(true); // nothing unsaved: navigates without asking
+    expect(confirm).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText("Mathematics score for Testo Example"), "70");
+    expect(click()).toBe(false); // cancelled: navigation blocked, scores kept
+    expect(confirm).toHaveBeenCalledWith("You have unsaved changes on this page. Leave without saving them?");
+    expect(screen.getByLabelText("Mathematics score for Testo Example")).toHaveValue("70");
+    expect(click()).toBe(true); // confirmed: allowed through
   });
 
   it("switches without asking when nothing is unsaved", async () => {

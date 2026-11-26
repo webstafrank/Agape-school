@@ -9,7 +9,7 @@ import { LevelBadge } from "./LevelBadge";
 const copy = staffPortal.grid;
 
 type Values = Record<string, string>;
-type Status = { kind: "idle" | "saving" | "saved" | "error"; message?: string };
+type Status = { kind: "idle" | "saving" | "saved" | "error"; message?: string; count?: number };
 
 const cellKey = (student: number, subject: number) => `${student}:${subject}`;
 
@@ -21,7 +21,8 @@ function valuesFrom(grid: Grid): Values {
   return values;
 }
 
-const SCORE = /^(\d{1,3}(\.\d{0,2})?|\.\d{1,2})$/;
+// 0-100 with up to 2 decimals: "7", "64.5", ".5". No trailing dot ("100."), no padding ("007").
+const SCORE = /^((0|[1-9]\d{0,2})(\.\d{1,2})?|\.\d{1,2})$/;
 
 /** null = blank (no result), undefined = not a valid score. */
 function parseScore(value: string): number | null | undefined {
@@ -41,8 +42,9 @@ function normalise(value: string): string {
 /** Mean to 1 decimal place, or blank when nothing is filled in. */
 function average(scores: number[]): string {
   if (scores.length === 0) return "";
-  const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
-  return (Math.round(mean * 10) / 10).toFixed(1);
+  // Work in hundredths (scores have at most 2 decimals) so .x5 rounds up, not down by float error.
+  const hundredths = scores.reduce((a, b) => a + Math.round(b * 100), 0);
+  return (Math.round(hundredths / scores.length / 10) / 10).toFixed(1);
 }
 
 /**
@@ -227,7 +229,7 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
       setServerErrors({});
       setAttempted(false);
       setTouched(new Set());
-      setStatus({ kind: "saved", message: copy.savedCount(cells.length) });
+      setStatus({ kind: "saved", message: copy.savedCount(cells.length), count: cells.length });
     } catch (err) {
       // Whatever went wrong, every typed score stays on screen.
       if (err instanceof ApiError && err.status === 400) {
@@ -252,12 +254,23 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
     void save();
   }
 
-  function onFormKeyDown(e: KeyboardEvent<HTMLFormElement>) {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-      e.preventDefault();
-      void save();
-    }
-  }
+  // Ctrl/Cmd+S saves from anywhere on the page (pickers, tabs, cells), never the browser's "Save page".
+  const saveRef = useRef(save);
+  useEffect(() => {
+    saveRef.current = save;
+  });
+  useEffect(() => {
+    if (locked) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void saveRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [locked]);
+
 
   const caption = copy.caption(grid.school_class.name, grid.term.label);
   const captionId = `grid-caption-${grid.school_class.id}-${grid.term.id}`;
@@ -283,14 +296,17 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
   let message = "";
   if (saving) message = copy.saving;
   else if (errorKeys.length) message = copy.fixCount(errorKeys.length);
-  else if (status.kind === "error" || status.kind === "saved") message = status.message ?? "";
+  else if (status.kind === "error") message = status.message ?? "";
+  else if (status.kind === "saved")
+    // Never claim "up to date" while cells typed during the save are still unsaved.
+    message = dirty ? copy.savedButUnsaved(status.count ?? 0, changed.length) : (status.message ?? "");
   else message = dirty ? copy.unsaved(changed.length) : copy.noChanges;
   const tone = errorKeys.length || status.kind === "error" ? "text-accent-800" : dirty ? "text-primary-800" : "text-ink-muted";
   const saveDisabled = !dirty || saving;
 
   return (
     // noValidate: our own per-cell messages replace the browser's tooltips.
-    <form onSubmit={onSubmit} onKeyDown={onFormKeyDown} noValidate aria-label={caption}>
+    <form onSubmit={onSubmit} noValidate aria-label={caption}>
       {locked ? (
         <p role="note" className="mb-6 rounded-xl border border-accent-300 bg-accent-50 px-4 py-3 font-semibold text-accent-900">
           {copy.locked}
@@ -319,7 +335,7 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
             </li>
             <li className="flex items-center gap-2">
               <span aria-hidden="true" className="inline-flex h-5 w-8 items-center justify-center rounded border-2 border-accent-700 bg-accent-50 text-xs font-bold text-accent-800">
-                !
+                {copy.glyphs.invalid}
               </span>
               {copy.legendInvalid}
             </li>
@@ -421,19 +437,19 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
                           />
                           {error ? (
                             <span id={noteId} className="text-center text-xs leading-snug font-semibold text-accent-800">
-                              <span aria-hidden="true">! </span>
+                              <span aria-hidden="true">{copy.glyphs.invalid} </span>
                               {error}
                             </span>
                           ) : isChanged ? (
                             <span id={noteId} className="text-xs font-semibold text-primary-700">
-                              <span aria-hidden="true">✎ </span>
+                              <span aria-hidden="true">{copy.glyphs.changed} </span>
                               {copy.changedMark}
                             </span>
                           ) : result ? (
                             <LevelBadge level={result.level} label={result.level_label} />
                           ) : (
                             <span aria-hidden="true" className="text-xs text-ink-muted">
-                              —
+                              {copy.glyphs.empty}
                             </span>
                           )}
                         </div>

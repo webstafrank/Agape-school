@@ -177,10 +177,14 @@ export const staffPortal = {
     legendChanged: "Changed, not saved yet",
     legendInvalid: "Needs fixing",
     changedMark: "Unsaved",
+    // Visual markers next to cell states (the words above are what screen readers hear).
+    glyphs: { invalid: "!", changed: "✎", empty: "—" },
     invalidScore: "Enter a number from 0 to 100.",
     save: "Save table",
     saving: "Saving…",
     savedCount: (n: number) => `Saved ${n} score${n === 1 ? "" : "s"}. Everything is up to date.`,
+    savedButUnsaved: (n: number, left: number) =>
+      `Saved ${n} score${n === 1 ? "" : "s"}. ${left} change${left === 1 ? "" : "s"} made while saving ${left === 1 ? "is" : "are"} not saved yet.`,
     noChanges: "No unsaved changes.",
     unsaved: (n: number) => `${n} unsaved change${n === 1 ? "" : "s"}.`,
     fixCount: (n: number) => `${n} score${n === 1 ? " needs" : "s need"} fixing before you can save.`,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { staffPortal } from "@/content/portal";
 import { getClass, getResultGrid, getResults, getSchoolProfile, getTerms } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
@@ -41,6 +41,27 @@ function ResultsPicker({ assignments, terms }: { assignments: Assignments; terms
   const dirty = useRef(false);
   const onDirtyChange = useCallback((d: boolean) => {
     dirty.current = d;
+  }, []);
+
+  // In-app links (portal tabs, header) navigate client-side, so `beforeunload` never fires.
+  // Catch them in the capture phase, before Next's Link handler, and ask first.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!dirty.current || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = (e.target as Element | null)?.closest?.("a[href]");
+      if (!(link instanceof HTMLAnchorElement) || link.target === "_blank" || link.hasAttribute("download")) return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin) return; // leaving the site: beforeunload asks
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+      if (window.confirm(gridCopy.confirmLeave)) {
+        dirty.current = false;
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
   }, []);
 
   if (assignments.length === 0 || terms.length === 0) return <EmptyState>{copy.noAssignments}</EmptyState>;
