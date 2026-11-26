@@ -113,3 +113,35 @@ def test_login_attempts_are_throttled(api, db):
     # Even the right password is refused until the window passes.
     ok = api.post(url, {"username": "dave", "password": "pw-not-real-123"}, format="json")
     assert ok.status_code == 429
+
+
+# ---- Django admin: create users and manage passwords ----
+
+def test_admin_creates_user_with_role_and_password_that_can_sign_in(api, client, db):
+    boss = User.objects.create_superuser("boss", "boss@example.com", "Boss-pw-not-real-1")
+    client.force_login(boss)
+
+    resp = client.post(reverse("admin:accounts_user_add"), {
+        "username": "TEST-STAFF-09", "usable_password": "true",
+        "password1": "Staff-pw-not-real-2", "password2": "Staff-pw-not-real-2",
+        "role": "staff", "first_name": "Tutor", "last_name": "Example", "_save": "Save",
+    })
+    assert resp.status_code == 302
+    user = User.objects.get(username="TEST-STAFF-09")
+    assert user.role == User.Role.STAFF
+
+    login = api.post(reverse("token_obtain_pair"),
+                     {"username": "TEST-STAFF-09", "password": "Staff-pw-not-real-2"}, format="json")
+    assert login.status_code == 200 and login.data["role"] == "staff"
+
+    # Password reset from the admin's "Reset password" page replaces the old one.
+    resp = client.post(reverse("admin:auth_user_password_change", args=[user.pk]), {
+        "usable_password": "true", "password1": "New-pw-not-real-3", "password2": "New-pw-not-real-3",
+    })
+    assert resp.status_code == 302
+    old = api.post(reverse("token_obtain_pair"),
+                   {"username": "TEST-STAFF-09", "password": "Staff-pw-not-real-2"}, format="json")
+    assert old.status_code == 401
+    new = api.post(reverse("token_obtain_pair"),
+                   {"username": "TEST-STAFF-09", "password": "New-pw-not-real-3"}, format="json")
+    assert new.status_code == 200

@@ -78,6 +78,10 @@ with parental consent for any identifiable child.
 | `LOGIN_THROTTLE_RATE` | portal sign-in attempts per client IP   | `10/minute`               |
 | `MEDIA_IMAGE_HOSTS` | comma-separated hosts admins may link images from (must match the frontend's `IMAGE_REMOTE_HOSTS`) | `res.cloudinary.com` |
 
+Locally, put backend variables in `backend/.env` (git-ignored; copy
+`backend/.env.example`). Set `DATABASE_URL` there to use PostgreSQL instead of
+sqlite. Real environment variables always override the file.
+
 Frontend env vars: `NEXT_PUBLIC_API_URL` (backend base URL),
 `NEXT_PUBLIC_SITE_URL` (public site URL for canonical links, sitemap, and share
 previews — **set in production**), and `IMAGE_REMOTE_HOSTS` (image hosts

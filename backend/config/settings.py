@@ -15,8 +15,14 @@ from pathlib import Path
 
 import dj_database_url
 
+from config.env import load_env_file
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Local dev: read backend/.env (git-ignored), e.g. DATABASE_URL for Postgres.
+# Real environment variables always take precedence.
+load_env_file(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
