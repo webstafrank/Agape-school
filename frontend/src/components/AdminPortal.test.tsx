@@ -82,7 +82,7 @@ describe("Admin users", () => {
     await u.selectOptions(screen.getByLabelText("Class"), "3");
     await u.click(screen.getByRole("button", { name: "Create account" }));
     expect(admin.createUser).toHaveBeenCalledWith({ username: "ADM-2026-007", first_name: "Newa", last_name: "", email: "",
-      role: "student", school_class: 3 });
+      role: "student", school_class: 3, date_of_birth: null, guardian_name: "", guardian_phone: "" });
     const panel = await screen.findByRole("alert");
     expect(panel).toHaveTextContent("ADM-2026-007");
     expect(within(panel).getByText("k7Rm4-Qx9pT")).toBeInTheDocument();
@@ -145,6 +145,53 @@ describe("Admin users", () => {
     expect(screen.getByLabelText("Can sign in")).toBeDisabled();
     await u.click(screen.getByRole("button", { name: "Save" }));
     expect(admin.updateUser.mock.calls[0][1]).not.toHaveProperty("is_active");
+  });
+
+  it("edits a student's date of birth and guardian, prefilled from the record", async () => {
+    admin.users.mockResolvedValue([user({ date_of_birth: "2016-03-09", guardian_name: "Old Guardian" })]);
+    admin.updateUser.mockResolvedValueOnce(user({}));
+    const u = userEvent.setup();
+    render(<AdminUsers />);
+    await u.click(await screen.findByRole("button", { name: "Edit: Testa Example" }));
+    expect(screen.getByLabelText("Date of birth")).toHaveValue("2016-03-09");
+    expect(screen.queryByLabelText("Staff number (TSC)")).not.toBeInTheDocument();
+    const name = screen.getByLabelText("Parent / guardian name");
+    await u.clear(name);
+    await u.type(name, "  New Guardian ");
+    await u.type(screen.getByLabelText("Parent / guardian phone"), "0700 000 001");
+    await u.click(screen.getByRole("button", { name: "Save" }));
+    expect(admin.updateUser).toHaveBeenCalledWith(20, expect.objectContaining({
+      date_of_birth: "2016-03-09", guardian_name: "New Guardian", guardian_phone: "0700 000 001",
+    }));
+    expect(admin.updateUser.mock.calls[0][1]).not.toHaveProperty("staff_number");
+  });
+
+  it("creates staff with a staff number and phone, and no student-only fields", async () => {
+    admin.createUser.mockResolvedValueOnce({ ...user({ id: 31, role: "staff" }), password: "k7Rm4-Qx9pT" });
+    const u = userEvent.setup();
+    render(<AdminUsers />);
+    await u.click(await screen.findByRole("button", { name: "Add user" }));
+    await u.selectOptions(screen.getByLabelText("Role"), "staff");
+    expect(screen.queryByLabelText("Date of birth")).not.toBeInTheDocument();
+    await u.type(screen.getByLabelText("Admission no. / Staff ID"), "STAFF-9");
+    await u.type(screen.getByLabelText("First name"), "Tutor");
+    await u.type(screen.getByLabelText("Staff number (TSC)"), "TSC-9");
+    await u.type(screen.getByLabelText("Phone"), "+254 700 000 009");
+    await u.click(screen.getByRole("button", { name: "Create account" }));
+    expect(admin.createUser).toHaveBeenCalledWith(expect.objectContaining({
+      role: "staff", staff_number: "TSC-9", phone: "+254 700 000 009", school_class: null,
+    }));
+    expect(admin.createUser.mock.calls[0][0]).not.toHaveProperty("guardian_name");
+  });
+
+  it("shows the server's reason for a bad detail", async () => {
+    admin.updateUser.mockRejectedValueOnce(new ApiError(400, { staff_number: ["Another staff member already has this number."] }));
+    admin.users.mockResolvedValue([user({ id: 21, role: "staff", first_name: "Tutor", school_class: null, class_name: null })]);
+    const u = userEvent.setup();
+    render(<AdminUsers />);
+    await u.click(await screen.findByRole("button", { name: "Edit: Tutor Example" }));
+    await u.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Another staff member already has this number.")).toBeInTheDocument();
   });
 
   it("filters by role from the URL and by search", async () => {

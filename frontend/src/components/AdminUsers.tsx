@@ -7,6 +7,7 @@ import { adminApi, type AdminClass, type AdminUser, type Role } from "@/lib/api"
 import { fieldClass, labelClass, panelClass, primaryButton, secondaryButton } from "@/lib/styles";
 import { actionError } from "@/lib/errors";
 import { useApi } from "@/lib/useApi";
+import { AdminProfileFields, detailsFromForm } from "./AdminProfileFields";
 import { AsyncView } from "./AsyncView";
 import { EmptyState } from "./EmptyState";
 import { OneTimePassword } from "./OneTimePassword";
@@ -117,6 +118,7 @@ function AddUserForm({
         email: get("email"),
         role,
         school_class: role === "student" && get("school_class") ? Number(get("school_class")) : null,
+        ...detailsFromForm(fd, role),
       });
       onCreated(created);
     } catch (err) {
@@ -170,6 +172,7 @@ function AddUserForm({
             </select>
           </div>
         )}
+        <AdminProfileFields idPrefix="new" role={role} />
         <div className="flex gap-3 sm:col-span-2">
           <button type="submit" disabled={busy} className={primaryButton}>{busy ? copy.creating : copy.create}</button>
           <button type="button" onClick={onCancel} className="rounded-full px-6 py-2.5 font-bold text-primary-800 hover:bg-primary-50">
@@ -211,6 +214,7 @@ function UserRow({
         // Your own box is disabled (and so absent from the form): don't send it.
         ...(user.id === me.id ? {} : { is_active: fd.get("is_active") === "on" }),
         ...(user.role === "student" ? { school_class: get("school_class") ? Number(get("school_class")) : null } : {}),
+        ...detailsFromForm(fd, user.role),
       });
       setEditing(false);
       setMessage(copy.saved);
@@ -282,6 +286,7 @@ function UserRow({
               </select>
             </div>
           )}
+          <AdminProfileFields idPrefix={`u${user.id}`} role={user.role} user={user} />
           <label className="flex items-center gap-2 font-semibold text-primary-900 sm:col-span-2">
             <input type="checkbox" name="is_active" defaultChecked={user.is_active} disabled={user.id === me.id} className="h-4 w-4" />
             {copy.active}

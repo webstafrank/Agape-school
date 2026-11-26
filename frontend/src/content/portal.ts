@@ -54,6 +54,7 @@ export const studentPortal = {
     { href: "/portal/student/timetable", label: "Timetable" },
     { href: "/portal/student/announcements", label: "Announcements" },
     { href: "/portal/student/fees", label: "Fees" },
+    { href: "/portal/student/profile", label: "My profile" },
   ],
   noClass: "You haven't been placed in a class yet. Please ask the school office.",
   loading: "Loading…",
@@ -110,6 +111,7 @@ export const staffPortal = {
     { href: "/portal/staff", label: "Overview" },
     { href: "/portal/staff/results", label: "Enter results" },
     { href: "/portal/staff/announcements", label: "Announcements" },
+    { href: "/portal/staff/profile", label: "My profile" },
   ],
   classes: {
     cardTitle: "My classes",
@@ -237,6 +239,14 @@ export const adminPortal = {
     empty: "No users match.",
     saved: "Changes saved.",
     failed: "That didn't work. Please check the form.",
+    details: {
+      dateOfBirth: "Date of birth",
+      guardianName: "Parent / guardian name",
+      guardianPhone: "Parent / guardian phone",
+      staffNumber: "Staff number (TSC)",
+      phone: "Phone",
+      phonePlaceholder: "e.g. 0712 345 678",
+    },
   },
   classes: {
     title: "Classes",
@@ -319,5 +329,65 @@ export const adminPortal = {
     empty: "No enquiries here.",
     saved: "Status updated.",
     failed: "That didn't work.",
+  },
+};
+
+/** "My profile" page for students and staff (admins edit the details). */
+export const profilePage = {
+  title: "My profile",
+  studentLead: "Your school details. If anything is wrong, please tell the school office.",
+  staffLead: "Your staff details, classes, and subjects. The school office keeps these up to date.",
+  notSet: "Not recorded",
+  officeNote: "Only the school office can change these details. Please contact them if anything is out of date.",
+  personal: {
+    title: "Personal details",
+    name: "Full name",
+    admissionNo: "Admission no.",
+    staffId: "Staff ID",
+    email: "Email",
+    dateOfBirth: "Date of birth",
+    memberSince: "Account created",
+  },
+  school: {
+    title: "Class",
+    className: "Class",
+    level: "Level",
+    section: "Section",
+    classTeacher: "Class teacher",
+    noClass: "You haven't been placed in a class yet. Please ask the school office.",
+    sections: { kindergarten: "Kindergarten", primary: "Primary", "junior-secondary": "Junior Secondary" } as Record<
+      string,
+      string
+    >,
+  },
+  guardian: {
+    title: "Parent / guardian",
+    name: "Name",
+    phone: "Phone",
+  },
+  staff: {
+    title: "Contact",
+    staffNumber: "Staff number (TSC)",
+    phone: "Phone",
+  },
+  teaching: {
+    title: "What I teach",
+    classTeacherOf: "Class teacher of",
+    none: "You haven't been assigned any classes or subjects yet. Please ask an administrator.",
+  },
+  password: {
+    title: "Change password",
+    lead: "Use at least 8 characters. A short phrase of three or four words is easy to remember and hard to guess.",
+    current: "Current password",
+    next: "New password",
+    confirm: "Type the new password again",
+    show: "Show passwords",
+    submit: "Change password",
+    submitting: "Changing…",
+    done: "Password changed. Use your new password next time you sign in.",
+    mismatch: "The two new passwords don't match.",
+    tooShort: "The new password must be at least 8 characters.",
+    required: "Enter your current password.",
+    failed: "Your password wasn't changed. Please try again.",
   },
 };
