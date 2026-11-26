@@ -1,9 +1,19 @@
 from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from admissions.models import Enquiry
 from gallery.models import MediaItem, youtube_id
-from school.models import SchoolClass, StudentProfile, Subject, TeachingAssignment, Term
+from school.models import (
+    SchoolClass,
+    StaffProfile,
+    StudentProfile,
+    Subject,
+    TeachingAssignment,
+    Term,
+    phone_validator,
+)
 
 User = get_user_model()
 
@@ -16,24 +26,45 @@ class AdminUserSerializer(serializers.ModelSerializer):
         help_text="Students only: their class.",
     )
     class_name = serializers.SerializerMethodField()
+    # Profile details (only admins edit these; users see their own on /api/school/me/).
+    date_of_birth = serializers.DateField(required=False, allow_null=True, write_only=True)
+    guardian_name = serializers.CharField(required=False, allow_blank=True, max_length=120, write_only=True)
+    guardian_phone = serializers.CharField(required=False, allow_blank=True, max_length=20, write_only=True,
+                                           validators=[phone_validator])
+    staff_number = serializers.CharField(required=False, allow_blank=True, max_length=30, write_only=True)
+    phone = serializers.CharField(required=False, allow_blank=True, max_length=20, write_only=True,
+                                  validators=[phone_validator])
+
+    STUDENT_DETAILS = ("date_of_birth", "guardian_name", "guardian_phone")
+    STAFF_DETAILS = ("staff_number", "phone")
 
     class Meta:
         model = User
         fields = ("id", "username", "first_name", "last_name", "email", "role", "is_active", "school_class",
-                  "class_name", "last_login", "date_joined")
+                  "class_name", "date_of_birth", "guardian_name", "guardian_phone", "staff_number", "phone",
+                  "last_login", "date_joined")
         read_only_fields = ("last_login", "date_joined")
 
     def _profile(self, user):
         return getattr(user, "student_profile", None) if user.role == "student" else None
+
+    def _staff_profile(self, user):
+        return getattr(user, "staff_profile", None) if user.role == "staff" else None
 
     def get_class_name(self, user):
         profile = self._profile(user)
         return profile.school_class.name if profile and profile.school_class else None
 
     def to_representation(self, user):
+        # Detail fields live on the profiles, not User: they're write-only above and read back here.
         data = super().to_representation(user)
-        profile = self._profile(user)
+        profile, staff = self._profile(user), self._staff_profile(user)
         data["school_class"] = profile.school_class_id if profile else None
+        data["date_of_birth"] = profile.date_of_birth.isoformat() if profile and profile.date_of_birth else None
+        data["guardian_name"] = profile.guardian_name if profile else ""
+        data["guardian_phone"] = profile.guardian_phone if profile else ""
+        data["staff_number"] = staff.staff_number if staff else ""
+        data["phone"] = staff.phone if staff else ""
         return data
 
     def get_fields(self):
@@ -54,27 +85,68 @@ class AdminUserSerializer(serializers.ModelSerializer):
         role = attrs.get("role") or (self.instance.role if self.instance else None)
         if attrs.get("school_class") is not None and role != "student":
             raise serializers.ValidationError({"school_class": "Only students are placed in a class."})
+        errors = {}
+        for name in self.STUDENT_DETAILS:
+            if attrs.get(name) not in (None, "") and role != "student":
+                errors[name] = "Only students have this detail."
+        for name in self.STAFF_DETAILS:
+            if attrs.get(name) not in (None, "") and role != "staff":
+                errors[name] = "Only staff have this detail."
+        if errors:
+            raise serializers.ValidationError(errors)
+        for name in ("guardian_name", "staff_number", "guardian_phone", "phone"):
+            if isinstance(attrs.get(name), str):
+                attrs[name] = attrs[name].strip()
+        dob = attrs.get("date_of_birth")
+        if dob is not None and dob >= timezone.localdate():
+            raise serializers.ValidationError({"date_of_birth": "Date of birth must be in the past."})
+        number = attrs.get("staff_number")
+        if number:
+            taken = StaffProfile.objects.filter(staff_number__iexact=number)
+            if self.instance is not None:
+                taken = taken.exclude(user=self.instance)
+            if taken.exists():
+                raise serializers.ValidationError({"staff_number": "Another staff member already has this number."})
         request = self.context["request"]
         if self.instance is not None and self.instance.pk == request.user.pk and attrs.get("is_active") is False:
             raise serializers.ValidationError({"is_active": "You can't deactivate your own account."})
         return attrs
 
+    def _pop_details(self, validated_data):
+        names = (*self.STUDENT_DETAILS, *self.STAFF_DETAILS)
+        return {n: validated_data.pop(n) for n in names if n in validated_data}
+
+    def _save_details(self, user, details, school_class=None, set_class=False):
+        if user.role == "student":
+            values = {n: details[n] for n in self.STUDENT_DETAILS if n in details}
+            if set_class:
+                values["school_class"] = school_class
+            profile, _ = StudentProfile.objects.update_or_create(user=user, defaults=values)
+            user.student_profile = profile  # replace the cached (stale) profile for the response
+        elif user.role == "staff":
+            values = {n: details[n] for n in self.STAFF_DETAILS if n in details}
+            if values or not StaffProfile.objects.filter(user=user).exists():
+                profile, _ = StaffProfile.objects.update_or_create(user=user, defaults=values)
+                user.staff_profile = profile
+
     def create(self, validated_data):
         school_class = validated_data.pop("school_class", None)
-        user = User(**validated_data)
-        user.set_unusable_password()  # replaced by the view with a generated one
-        user.save()
-        if user.role == "student":
-            StudentProfile.objects.create(user=user, school_class=school_class)
+        details = self._pop_details(validated_data)
+        with transaction.atomic():
+            user = User(**validated_data)
+            user.set_unusable_password()  # replaced by the view with a generated one
+            user.save()
+            self._save_details(user, details, school_class, set_class=True)
         return user
 
     def update(self, user, validated_data):
         has_class = "school_class" in validated_data
         school_class = validated_data.pop("school_class", None)
-        user = super().update(user, validated_data)
-        if has_class and user.role == "student":
-            profile, _ = StudentProfile.objects.update_or_create(user=user, defaults={"school_class": school_class})
-            user.student_profile = profile  # replace the cached (stale) profile for the response
+        details = self._pop_details(validated_data)
+        with transaction.atomic():
+            user = super().update(user, validated_data)
+            if has_class or details:
+                self._save_details(user, details, school_class, set_class=has_class)
         return user
 
 

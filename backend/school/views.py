@@ -1,7 +1,9 @@
 from django.db.models import Exists, OuterRef, Q
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -30,12 +32,14 @@ from .permissions import (
 from .serializers import (
     AnnouncementSerializer,
     FeeRecordSerializer,
+    ResultGridSerializer,
     ResultSerializer,
     ResultSheetSerializer,
     SchoolClassSerializer,
     SubjectSerializer,
     TermSerializer,
     TimetableEntrySerializer,
+    grid_payload,
     profile_payload,
 )
 
@@ -114,6 +118,43 @@ class ResultViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         results = serializer.save()
         return Response(ResultSerializer(results, many=True, context={"request": request}).data)
+
+    @action(detail=False, methods=["get", "post"])
+    def grid(self, request):
+        """Class results table: students down the side, the caller's subjects across the top.
+
+        GET  /results/grid/?school_class=<id>&term=<id>  (term defaults to the current term)
+        POST /results/grid/ {school_class, term, cells: [{student, subject, score|null}]}  atomic
+        Staff only see and save subjects they teach in that class; a class they
+        don't teach is not found (404). Students have no access.
+        """
+        if role_of(request.user) not in (STAFF, ADMIN):
+            raise PermissionDenied("Only staff and administrators can use the results table.")
+        if request.method == "POST":
+            serializer = ResultGridSerializer(data=request.data, context={"request": request})
+            serializer.is_valid(raise_exception=True)
+            return Response(serializer.save())
+
+        cls = self._grid_class(request)
+        term_id = request.query_params.get("term", "")
+        if term_id:
+            if not term_id.isdigit():
+                raise NotFound("Term not found.")
+            term = get_object_or_404(Term, id=int(term_id))
+        else:
+            term = Term.objects.filter(is_current=True).first() or Term.objects.first()
+            if term is None:
+                raise NotFound("No terms have been set up yet.")
+        return Response(grid_payload(request.user, cls, term))
+
+    def _grid_class(self, request):
+        value = request.query_params.get("school_class", "")
+        if not value.isdigit():
+            raise NotFound("Choose a class.")
+        qs = SchoolClass.objects.all()
+        if role_of(request.user) == STAFF:
+            qs = qs.filter(assignments__teacher=request.user).distinct()
+        return get_object_or_404(qs, id=int(value))
 
 
 class AnnouncementViewSet(viewsets.ModelViewSet):

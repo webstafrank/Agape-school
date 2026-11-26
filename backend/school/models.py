@@ -11,9 +11,10 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 from admissions.models import Enquiry
@@ -88,8 +89,17 @@ class SchoolClass(models.Model):
         return section_for_grade(self.grade)
 
 
+phone_validator = RegexValidator(
+    r"^\+?[0-9][0-9 ]{6,18}[0-9]$", "Enter a phone number using digits only, e.g. 0712 345 678 or +254 712 345 678."
+)
+
+
 class StudentProfile(models.Model):
-    """Links a student account to their current class. Keeps child data minimal."""
+    """Links a student account to their class, plus the few details the office needs.
+
+    Keeps child data minimal: no photo, no address. Only the pupil and
+    admins see these fields; admins are the only editors.
+    """
 
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="student_profile", limit_choices_to={"role": "student"}
@@ -97,6 +107,9 @@ class StudentProfile(models.Model):
     school_class = models.ForeignKey(
         SchoolClass, null=True, blank=True, on_delete=models.SET_NULL, related_name="students"
     )
+    date_of_birth = models.DateField(null=True, blank=True)
+    guardian_name = models.CharField(max_length=120, blank=True)
+    guardian_phone = models.CharField(max_length=20, blank=True, validators=[phone_validator])
 
     class Meta:
         ordering = ("user__username",)
@@ -107,6 +120,35 @@ class StudentProfile(models.Model):
     def clean(self):
         if self.user_id and self.user.role != "student":
             raise ValidationError({"user": "Only student accounts can have a student profile."})
+
+
+class StaffProfile(models.Model):
+    """Office details for a staff account. Created on first edit; admins are the only editors."""
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="staff_profile", limit_choices_to={"role": "staff"}
+    )
+    staff_number = models.CharField(
+        max_length=30, blank=True, help_text="e.g. TSC number or the school's own staff number."
+    )
+    phone = models.CharField(max_length=20, blank=True, validators=[phone_validator])
+
+    class Meta:
+        ordering = ("user__username",)
+        constraints = [
+            # Blank is allowed for many staff; a filled-in number must be unique, ignoring case
+            # (so "tsc-9" and "TSC-9" can't both exist, even via Django admin or a race).
+            models.UniqueConstraint(
+                Lower("staff_number"), condition=~Q(staff_number=""), name="unique_staff_number_ci"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.user.username
+
+    def clean(self):
+        if self.user_id and self.user.role != "staff":
+            raise ValidationError({"user": "Only staff accounts can have a staff profile."})
 
 
 class TeachingAssignment(models.Model):

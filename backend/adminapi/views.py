@@ -53,7 +53,7 @@ class UserViewSet(AdminOnly, mixins.ListModelMixin, mixins.RetrieveModelMixin, m
     serializer_class = AdminUserSerializer
 
     def get_queryset(self):
-        qs = User.objects.select_related("student_profile__school_class").order_by("role", "username")
+        qs = User.objects.select_related("student_profile__school_class", "staff_profile").order_by("role", "username")
         p = self.request.query_params
         if p.get("role") in ("student", "staff", "admin"):
             qs = qs.filter(role=p["role"])

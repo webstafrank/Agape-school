@@ -44,6 +44,7 @@ export const portalShell = {
   logout: "Log out",
   unavailable: "We couldn't reach the school server. Please check your connection and try again.",
   retry: "Try again",
+  leaveUnsaved: "Some changes on this page aren't saved yet. Leave anyway?",
 };
 
 /** Student portal pages. */
@@ -54,6 +55,7 @@ export const studentPortal = {
     { href: "/portal/student/timetable", label: "Timetable" },
     { href: "/portal/student/announcements", label: "Announcements" },
     { href: "/portal/student/fees", label: "Fees" },
+    { href: "/portal/student/profile", label: "My profile" },
   ],
   noClass: "You haven't been placed in a class yet. Please ask the school office.",
   loading: "Loading…",
@@ -110,6 +112,7 @@ export const staffPortal = {
     { href: "/portal/staff", label: "Overview" },
     { href: "/portal/staff/results", label: "Enter results" },
     { href: "/portal/staff/announcements", label: "Announcements" },
+    { href: "/portal/staff/profile", label: "My profile" },
   ],
   classes: {
     cardTitle: "My classes",
@@ -148,6 +151,57 @@ export const staffPortal = {
     sessionEnded:
       "Your session has ended, so nothing was saved. Your scores are still here: sign in again in a new tab, then press Save results.",
     blankHint: "Leave a score blank for no result. Clearing a score removes that result.",
+  },
+  grid: {
+    viewLabel: "How to enter results",
+    tableView: "Results table",
+    commentsView: "Comments by subject",
+    commentsHint: "Write a comment for each student, one subject at a time. Scores you change here also show in the results table.",
+    classLabel: "Class",
+    caption: (className: string, term: string) => `${className} · ${term}`,
+    student: "Student",
+    average: "Average",
+    classAverage: "Class average",
+    entered: (n: number, total: number) => `${n}/${total} entered`,
+    cellLabel: (subject: string, student: string) => `${subject} score for ${student}`,
+    keysTitle: "Keyboard",
+    keys: [
+      ["Enter", "next student (then next subject)"],
+      ["↑ ↓", "up / down a subject"],
+      ["Tab", "across the row"],
+      ["Esc", "undo this cell"],
+      ["Ctrl + S", "save"],
+    ] as const,
+    blankHint: "Scores are 0–100. Leave a cell blank for no result; clearing a saved score removes it.",
+    legendTitle: "What the cells mean",
+    legendSaved: "Saved, with level",
+    legendChanged: "Changed, not saved yet",
+    legendInvalid: "Needs fixing",
+    changedMark: "Unsaved",
+    // Visual markers next to cell states (the words above are what screen readers hear).
+    glyphs: { invalid: "!", changed: "✎", empty: "—" },
+    invalidScore: "Enter a number from 0 to 100.",
+    save: "Save table",
+    saving: "Saving…",
+    savedCount: (n: number) => `Saved ${n} score${n === 1 ? "" : "s"}. Everything is up to date.`,
+    savedButUnsaved: (n: number, left: number) =>
+      `Saved ${n} score${n === 1 ? "" : "s"}. ${left} change${left === 1 ? "" : "s"} made while saving ${left === 1 ? "is" : "are"} not saved yet.`,
+    noChanges: "No unsaved changes.",
+    unsaved: (n: number) => `${n} unsaved change${n === 1 ? "" : "s"}.`,
+    fixCount: (n: number) => `${n} score${n === 1 ? " needs" : "s need"} fixing before you can save.`,
+    fixListTitle: "Fix these scores:",
+    saveFailed: "Your scores weren't saved. They are still here: please try again.",
+    conflict:
+      "Someone else saved this class at the same moment, so nothing was saved. Your scores are still here: press Save table again.",
+    savedNoRefresh:
+      "Your scores were saved, but the table couldn't refresh to show the new levels. Reload the page to see them.",
+    sessionEnded:
+      "Your session has ended, so nothing was saved. Your scores are still here: sign in again in a new tab, then press Save table.",
+    locked:
+      "This term's results are published, so the table is read-only. Ask an administrator to unpublish the term if something needs correcting.",
+    noStudents: "There are no students in this class yet.",
+    noSubjects: "You don't teach any subjects in this class.",
+    confirmLeave: "Some changes on this page aren't saved yet. Leave anyway?",
   },
   announcements: {
     title: "Class announcements",
@@ -237,6 +291,14 @@ export const adminPortal = {
     empty: "No users match.",
     saved: "Changes saved.",
     failed: "That didn't work. Please check the form.",
+    details: {
+      dateOfBirth: "Date of birth",
+      guardianName: "Parent / guardian name",
+      guardianPhone: "Parent / guardian phone",
+      staffNumber: "Staff number (TSC)",
+      phone: "Phone",
+      phonePlaceholder: "e.g. 0712 345 678",
+    },
   },
   classes: {
     title: "Classes",
@@ -319,5 +381,65 @@ export const adminPortal = {
     empty: "No enquiries here.",
     saved: "Status updated.",
     failed: "That didn't work.",
+  },
+};
+
+/** "My profile" page for students and staff (admins edit the details). */
+export const profilePage = {
+  title: "My profile",
+  studentLead: "Your school details. If anything is wrong, please tell the school office.",
+  staffLead: "Your staff details, classes, and subjects. The school office keeps these up to date.",
+  notSet: "Not recorded",
+  officeNote: "Only the school office can change these details. Please contact them if anything is out of date.",
+  personal: {
+    title: "Personal details",
+    name: "Full name",
+    admissionNo: "Admission no.",
+    staffId: "Staff ID",
+    email: "Email",
+    dateOfBirth: "Date of birth",
+    memberSince: "Account created",
+  },
+  school: {
+    title: "Class",
+    className: "Class",
+    level: "Level",
+    section: "Section",
+    classTeacher: "Class teacher",
+    noClass: "You haven't been placed in a class yet. Please ask the school office.",
+    sections: { kindergarten: "Kindergarten", primary: "Primary", "junior-secondary": "Junior Secondary" } as Record<
+      string,
+      string
+    >,
+  },
+  guardian: {
+    title: "Parent / guardian",
+    name: "Name",
+    phone: "Phone",
+  },
+  staff: {
+    title: "Contact",
+    staffNumber: "Staff number (TSC)",
+    phone: "Phone",
+  },
+  teaching: {
+    title: "What I teach",
+    classTeacherOf: "Class teacher of",
+    none: "You haven't been assigned any classes or subjects yet. Please ask an administrator.",
+  },
+  password: {
+    title: "Change password",
+    lead: "Use at least 8 characters. A short phrase of three or four words is easy to remember and hard to guess.",
+    current: "Current password",
+    next: "New password",
+    confirm: "Type the new password again",
+    show: "Show passwords",
+    submit: "Change password",
+    submitting: "Changing…",
+    done: "Password changed. Use your new password next time you sign in.",
+    mismatch: "The two new passwords don't match.",
+    tooShort: "The new password must be at least 8 characters.",
+    required: "Enter your current password.",
+    failed: "Your password wasn't changed. Please try again.",
   },
 };

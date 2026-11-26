@@ -1,5 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { API_BASE_URL, ApiError, getHealth, getMe, getPost, getPosts, isLoggedIn, login, logout, tokenStore } from "./api";
+import {
+  API_BASE_URL,
+  ApiError,
+  PHONE_PATTERN,
+  changePassword,
+  getHealth,
+  getMe,
+  getPost,
+  getPosts,
+  isLoggedIn,
+  login,
+  logout,
+  tokenStore,
+} from "./api";
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -23,6 +36,29 @@ afterEach(() => {
 });
 
 describe("api client", () => {
+  it("changePassword swaps in the fresh tokens so this session stays signed in", async () => {
+    tokenStore.set({ access: "old-a", refresh: "old-r" });
+    fetchMock.mockResolvedValueOnce(json(200, { detail: "Password changed.", access: "new-a", refresh: "new-r" }));
+    await expect(changePassword({ current_password: "x", new_password: "y" })).resolves.toEqual({ detail: "Password changed." });
+    expect(fetchMock.mock.calls[0][0]).toBe(`${API_BASE_URL}/api/auth/password/`);
+    expect(authHeader(0)).toBe("Bearer old-a");
+    expect(tokenStore.get()).toEqual({ access: "new-a", refresh: "new-r" });
+  });
+
+  it("a failed password change keeps the current tokens", async () => {
+    tokenStore.set({ access: "old-a", refresh: "old-r" });
+    fetchMock.mockResolvedValueOnce(json(400, { current_password: ["That isn't your current password."] }));
+    await expect(changePassword({ current_password: "x", new_password: "y" })).rejects.toBeInstanceOf(ApiError);
+    expect(tokenStore.get()).toEqual({ access: "old-a", refresh: "old-r" });
+  });
+
+  it.each([
+    ["0712 345 678", true], ["+254 712 345 678", true], ["0712345678", true],
+    ["+ 712 345 678", false], ["0712 345 678 ", false], ["12", false], ["call me", false], ["0712-345-678", false],
+  ])("PHONE_PATTERN matches the server rule: %j -> %s", (phone, ok) => {
+    expect(new RegExp(`^(?:${PHONE_PATTERN})$`).test(phone)).toBe(ok);
+  });
+
   it("login stores tokens and returns the role", async () => {
     fetchMock.mockResolvedValueOnce(json(200, { access: "a1", refresh: "r1", role: "student" }));
 

@@ -5,6 +5,7 @@ from .models import (
     FeeRecord,
     Result,
     SchoolClass,
+    StaffProfile,
     StudentProfile,
     Subject,
     TeachingAssignment,
@@ -62,6 +63,13 @@ class StudentProfileAdmin(admin.ModelAdmin):
     list_filter = ("school_class",)
     search_fields = ("user__username", "user__first_name", "user__last_name")
     autocomplete_fields = ("user", "school_class")
+
+
+@admin.register(StaffProfile)
+class StaffProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "staff_number", "phone")
+    search_fields = ("user__username", "user__first_name", "user__last_name", "staff_number")
+    autocomplete_fields = ("user",)
 
 
 @admin.register(TeachingAssignment)

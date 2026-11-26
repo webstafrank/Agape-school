@@ -36,11 +36,14 @@ export function MarkSheet({
   subject,
   term,
   initialResults,
+  onDirtyChange,
 }: {
   cls: StaffClass;
   subject: number;
   term: Term;
   initialResults: Result[];
+  /** Told whenever unsaved changes appear or go, so the page can ask before switching away. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [saved, setSaved] = useState<Result[]>(initialResults);
   const original = useMemo(() => rowsFrom(cls, saved), [cls, saved]);
@@ -54,6 +57,11 @@ export function MarkSheet({
     (s) => rows[s.id].score.trim() !== original[s.id].score || rows[s.id].comment !== original[s.id].comment,
   );
   const dirty = changed.length > 0;
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
 
   // Warn before leaving the page with unsaved scores.
   useEffect(() => {

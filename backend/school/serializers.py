@@ -1,13 +1,15 @@
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import serializers
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import APIException, PermissionDenied
 
-from .grading import section_for_grade
+from .grading import level_for, section_for_grade
 from .models import (
     Announcement,
     FeeRecord,
     Result,
     SchoolClass,
+    StaffProfile,
     StudentProfile,
     Subject,
     TeachingAssignment,
@@ -19,6 +21,7 @@ from .models import (
 from .permissions import ADMIN, STAFF, PublishedResultsLockedForStaff, role_of
 
 PUBLISHED_LOCKED = PublishedResultsLockedForStaff.message
+NOT_YOUR_CLASS = "You can only enter results for classes and subjects you teach."
 
 
 def display_name(user) -> str:
@@ -247,17 +250,182 @@ class TeachingAssignmentSerializer(serializers.ModelSerializer):
 
 
 def profile_payload(user) -> dict:
-    """GET /api/school/me/ — the signed-in user's school details."""
-    data = {"id": user.id, "username": user.username, "name": display_name(user), "role": user.role}
+    """GET /api/school/me/ — the signed-in user's own school details (never anyone else's).
+
+    `details` holds the office fields an admin keeps up to date; they are
+    read-only here and editable only through /api/admin/users/.
+    """
+    data = {
+        "id": user.id, "username": user.username, "name": display_name(user), "role": user.role,
+        "first_name": user.first_name, "last_name": user.last_name, "email": user.email,
+        "date_joined": user.date_joined, "last_login": user.last_login,
+    }
     if user.role == "student":
-        profile = StudentProfile.objects.select_related("school_class").filter(user=user).first()
+        profile = StudentProfile.objects.select_related("school_class__class_teacher").filter(user=user).first()
         cls = profile.school_class if profile else None
         data["school_class"] = (
             {"id": cls.id, "name": cls.name, "grade": cls.grade, "grade_label": cls.get_grade_display(),
-             "section": section_for_grade(cls.grade), "year": cls.year}
+             "section": section_for_grade(cls.grade), "year": cls.year,
+             "class_teacher_name": display_name(cls.class_teacher) if cls.class_teacher else None}
             if cls else None
         )
+        data["details"] = {
+            "date_of_birth": profile.date_of_birth if profile else None,
+            "guardian_name": profile.guardian_name if profile else "",
+            "guardian_phone": profile.guardian_phone if profile else "",
+        }
     elif user.role == "staff":
         assignments = TeachingAssignment.objects.filter(teacher=user).select_related("school_class", "subject")
         data["assignments"] = TeachingAssignmentSerializer(assignments, many=True).data
+        data["class_teacher_of"] = [
+            {"id": c.id, "name": c.name} for c in SchoolClass.objects.filter(class_teacher=user).order_by("name")
+        ]
+        staff = StaffProfile.objects.filter(user=user).first()
+        data["details"] = {
+            "staff_number": staff.staff_number if staff else "",
+            "phone": staff.phone if staff else "",
+        }
     return data
+
+
+class GridCellSerializer(serializers.Serializer):
+    student = serializers.IntegerField()
+    subject = serializers.IntegerField()
+    # Null = no result for this student in this subject (an existing one is removed).
+    score = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0, max_value=100, allow_null=True)
+
+
+def grid_subjects(user, school_class):
+    """Subjects a user may enter in a class's results table.
+
+    Staff: only the subjects they are assigned to teach in that class.
+    Admin: every subject anyone is assigned to teach in that class.
+    """
+    qs = Subject.objects.filter(assignments__school_class=school_class)
+    if role_of(user) == STAFF:
+        qs = qs.filter(assignments__teacher=user)
+    return qs.distinct().order_by("name")
+
+
+class ResultGridSerializer(serializers.Serializer):
+    """A class results table (students x subjects) for one term, saved all-or-nothing.
+
+    Only changed cells are sent. A score creates or updates the result and keeps
+    its comment; a null score removes the result.
+    """
+
+    # Payload guard only: cells must also be unique (student, subject) pairs from this
+    # class's active students and the caller's subjects, so real tables stay far smaller.
+    MAX_CELLS = 2000
+
+    school_class = serializers.PrimaryKeyRelatedField(queryset=SchoolClass.objects.all())
+    term = serializers.PrimaryKeyRelatedField(queryset=Term.objects.all())
+    cells = GridCellSerializer(many=True, allow_empty=False, max_length=MAX_CELLS)
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        cls, term = attrs["school_class"], attrs["term"]
+        is_staff = role_of(user) == STAFF
+        allowed = set(grid_subjects(user, cls).values_list("id", flat=True))
+        if is_staff:
+            if not allowed:
+                raise PermissionDenied(NOT_YOUR_CLASS)
+            if term.results_published:
+                raise PermissionDenied(PUBLISHED_LOCKED)
+        in_class = set(grid_students(cls).values_list("user_id", flat=True))
+        seen, errors = set(), []
+        for cell in attrs["cells"]:
+            err = {}
+            key = (cell["student"], cell["subject"])
+            if cell["subject"] not in allowed:
+                if is_staff:
+                    # Never save any of a table that reaches outside the teacher's subjects.
+                    raise PermissionDenied(NOT_YOUR_CLASS)
+                err["subject"] = ["Nobody teaches this subject in that class."]
+            if cell["student"] not in in_class:
+                err["student"] = ["This student is not in that class."]
+            elif key in seen:
+                err["student"] = ["This student and subject appear more than once."]
+            seen.add(key)
+            errors.append(err)
+        if any(errors):
+            raise serializers.ValidationError({"cells": errors})
+        return attrs
+
+    def save(self):
+        data, user = self.validated_data, self.context["request"].user
+        cls, term, cells = data["school_class"], data["term"], data["cells"]
+        now = timezone.now()
+        try:
+            with transaction.atomic():
+                # One result per (student, subject, term) whatever the class: a pupil who
+                # moved class mid-term keeps a single result, which now belongs to this class.
+                existing = {
+                    (r.student_id, r.subject_id): r
+                    for r in Result.objects.select_for_update().filter(
+                        term=term,
+                        student_id__in={c["student"] for c in cells}, subject_id__in={c["subject"] for c in cells},
+                    )
+                }
+                to_create, to_update, to_delete = [], [], []
+                for cell in cells:
+                    result = existing.get((cell["student"], cell["subject"]))
+                    if cell["score"] is None:
+                        if result is not None:
+                            to_delete.append(result.pk)
+                        continue
+                    if result is None:
+                        result = Result(student_id=cell["student"], subject_id=cell["subject"], term=term)
+                        to_create.append(result)
+                    else:
+                        to_update.append(result)
+                    # bulk_* skip Result.save(), so set what it (and auto_now) would.
+                    result.school_class, result.score, result.entered_by = cls, cell["score"], user
+                    result.level = level_for(result.score, cls.grade)[0]
+                    result.updated_at = now
+                Result.objects.filter(pk__in=to_delete).delete()
+                Result.objects.bulk_update(to_update, ["school_class", "score", "level", "entered_by", "updated_at"])
+                Result.objects.bulk_create(to_create)
+        except IntegrityError as exc:
+            # Someone else created one of these results between our read and write.
+            raise ResultsConflict() from exc
+        return grid_payload(user, cls, term)
+
+
+class ResultsConflict(APIException):
+    status_code = 409
+    default_detail = "Someone else saved results for this class at the same moment. Reload the table and try again."
+    default_code = "conflict"
+
+
+def grid_students(school_class):
+    """Active pupils currently in a class (deactivated accounts never appear or take results)."""
+    return StudentProfile.objects.filter(school_class=school_class, user__is_active=True)
+
+
+def grid_payload(user, school_class, term) -> dict:
+    """Body of GET/POST /api/school/results/grid/: students, the user's subjects, and saved scores."""
+    subjects = list(grid_subjects(user, school_class))
+    students = list(
+        grid_students(school_class).select_related("user").order_by("user__last_name", "user__first_name", "user__username")
+    )
+    # Keyed by pupil, not by the class on the result: a pupil who moved in mid-term shows
+    # the result they already have, so the teacher can see and correct it.
+    results = (
+        Result.objects.filter(term=term, subject__in=subjects, student_id__in=[s.user_id for s in students])
+        .select_related("school_class")
+        .order_by("student_id", "subject_id")
+    )
+    return {
+        "school_class": {"id": school_class.id, "name": school_class.name, "grade": school_class.grade,
+                         "section": school_class.section},
+        "term": TermSerializer(term).data,
+        "locked": role_of(user) == STAFF and term.results_published,
+        "subjects": SubjectSerializer(subjects, many=True).data,
+        "students": ClassmateSerializer(students, many=True).data,
+        "results": [
+            {"student": r.student_id, "subject": r.subject_id, "score": str(r.score), "level": r.level,
+             "level_label": r.level_label, "comment": r.comment}
+            for r in results
+        ],
+    }
