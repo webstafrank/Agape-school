@@ -1,8 +1,15 @@
 import { adminPortal } from "@/content/portal";
-import type { AdminUser, AdminUserInput, Role } from "@/lib/api";
+import { site } from "@/content/site";
+import { PHONE_PATTERN, type AdminUser, type AdminUserInput, type Role } from "@/lib/api";
 import { fieldClass, labelClass } from "@/lib/styles";
 
 const copy = adminPortal.users.details;
+
+/** Yesterday's date (YYYY-MM-DD) in the school's time zone: the latest valid date of birth. */
+export function schoolYesterday(now: Date = new Date()): string {
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: site.timeZone }).format(new Date(now.getTime() - 86_400_000));
+}
 
 /** Reads the role's profile-detail inputs from a submitted form (blank clears a value). */
 export function detailsFromForm(fd: FormData, role: Role): Partial<AdminUserInput> {
@@ -23,13 +30,13 @@ export function AdminProfileFields({ idPrefix, role, user }: { idPrefix: string;
       <input id={`${idPrefix}-${name}`} name={name} autoComplete="off" className={fieldClass} {...props} />
     </div>
   );
-  // Phone: digits/spaces with optional leading +; the server gives the final word.
-  const phone = { type: "tel", inputMode: "tel", maxLength: 20, pattern: "\\+?[0-9 ]{8,20}", placeholder: copy.phonePlaceholder };
+  // Same rule as the server, so a bad number is caught before submitting.
+  const phone = { type: "tel", inputMode: "tel", maxLength: 20, pattern: PHONE_PATTERN, placeholder: copy.phonePlaceholder };
   return role === "student" ? (
     <>
       {field("date_of_birth", copy.dateOfBirth, {
         type: "date",
-        max: new Date().toISOString().slice(0, 10),
+        max: schoolYesterday(),
         defaultValue: user?.date_of_birth ?? "",
       })}
       {field("guardian_name", copy.guardianName, { maxLength: 120, defaultValue: user?.guardian_name ?? "" })}

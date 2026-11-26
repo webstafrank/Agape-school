@@ -18,8 +18,11 @@ class RoleTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     @classmethod
     def get_token(cls, user):
+        from .tokens import CLAIM, password_stamp
+
         token = super().get_token(user)
         token["role"] = user.role
+        token[CLAIM] = password_stamp(user)  # copied into access tokens; see accounts/tokens.py
         return token
 
     def validate(self, attrs):

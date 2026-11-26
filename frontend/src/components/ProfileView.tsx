@@ -143,7 +143,7 @@ export function ProfileView() {
             {copy.officeNote}
           </p>
           <div className="rounded-2xl border border-surface-border bg-surface p-6 lg:col-span-2 lg:max-w-xl">
-            <ChangePasswordForm />
+            <ChangePasswordForm username={p.username} />
           </div>
         </div>
       )}

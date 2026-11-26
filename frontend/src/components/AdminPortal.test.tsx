@@ -7,6 +7,7 @@ import { AdminEnquiries } from "./AdminEnquiries";
 import { AdminGallery } from "./AdminGallery";
 import { AdminOverview } from "./AdminOverview";
 import { AdminTerms } from "./AdminTerms";
+import { schoolYesterday } from "./AdminProfileFields";
 import { AdminUsers } from "./AdminUsers";
 import { AnnouncementManager } from "./AnnouncementManager";
 
@@ -182,6 +183,13 @@ describe("Admin users", () => {
       role: "staff", staff_number: "TSC-9", phone: "+254 700 000 009", school_class: null,
     }));
     expect(admin.createUser.mock.calls[0][0]).not.toHaveProperty("guardian_name");
+  });
+
+  it.each([
+    ["2026-11-26T21:30:00Z", "2026-11-26"], // 00:30 on 27 Nov in Nairobi: yesterday is the 26th, not the 25th
+    ["2026-11-26T12:00:00Z", "2026-11-25"],
+  ])("latest date of birth on offer at %s is %s (school time zone)", (now, expected) => {
+    expect(schoolYesterday(new Date(now))).toBe(expected);
   });
 
   it("shows the server's reason for a bad detail", async () => {

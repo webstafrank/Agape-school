@@ -14,6 +14,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 from admissions.models import Enquiry
@@ -135,9 +136,10 @@ class StaffProfile(models.Model):
     class Meta:
         ordering = ("user__username",)
         constraints = [
-            # Blank is allowed for many staff; a filled-in number must be unique.
+            # Blank is allowed for many staff; a filled-in number must be unique, ignoring case
+            # (so "tsc-9" and "TSC-9" can't both exist, even via Django admin or a race).
             models.UniqueConstraint(
-                fields=("staff_number",), condition=~Q(staff_number=""), name="unique_staff_number"
+                Lower("staff_number"), condition=~Q(staff_number=""), name="unique_staff_number_ci"
             )
         ]
 

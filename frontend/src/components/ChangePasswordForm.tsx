@@ -4,11 +4,9 @@ import { useId, useState, type FormEvent } from "react";
 import { profilePage } from "@/content/portal";
 import { ApiError, changePassword } from "@/lib/api";
 import { actionError } from "@/lib/errors";
+import { fieldClass, labelClass } from "@/lib/styles";
 
 const copy = profilePage.password;
-
-const fieldClass =
-  "mt-1 block w-full rounded-lg border border-surface-border bg-surface px-3 py-2.5 text-ink shadow-sm focus:border-primary-500 aria-[invalid=true]:border-accent-700";
 
 type Field = "current" | "next" | "confirm";
 type Errors = Partial<Record<Field, string>>;
@@ -22,8 +20,11 @@ function serverErrors(err: unknown): Errors | null {
   return Object.keys(out).length ? out : null;
 }
 
-/** Change your own password. The current password is required; nothing is kept after success. */
-export function ChangePasswordForm() {
+/**
+ * Change your own password. The current password is required; nothing is kept after success.
+ * The server signs out every other session and hands this one fresh tokens (see changePassword).
+ */
+export function ChangePasswordForm({ username }: { username: string }) {
   const id = useId();
   const [values, setValues] = useState<Record<Field, string>>({ current: "", next: "", confirm: "" });
   const [show, setShow] = useState(false);
@@ -66,7 +67,7 @@ export function ChangePasswordForm() {
     const inputId = `${id}-${name}`;
     return (
       <div>
-        <label htmlFor={inputId} className="block text-sm font-bold text-primary-900">
+        <label htmlFor={inputId} className={labelClass}>
           {label}
         </label>
         <input
@@ -96,11 +97,14 @@ export function ChangePasswordForm() {
         <h2 id={`${id}-title`} className="text-xl font-bold">{copy.title}</h2>
         <p className="mt-1 text-sm text-ink-muted">{copy.lead}</p>
       </div>
+      {/* Lets password managers file the new password under the right account. */}
+      <input type="text" name="username" autoComplete="username" value={username} readOnly hidden />
+
       {field("current", copy.current, "current-password")}
       {field("next", copy.next, "new-password")}
       {field("confirm", copy.confirm, "new-password")}
       <label className="flex items-center gap-2 text-sm font-semibold text-primary-900">
-        <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} className="h-5 w-5" />
+        <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} className="h-6 w-6" />
         {copy.show}
       </label>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

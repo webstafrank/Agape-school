@@ -7,11 +7,16 @@ Uses the fixture world from school/tests.py:
 """
 from datetime import date, timedelta
 
+from unittest import mock
+
 import pytest
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from django.contrib.auth import get_user_model
+
+from .grading import level_for
 from .models import Result, SchoolClass, StaffProfile, StudentProfile, Subject, TeachingAssignment
 from .tests import client_for, w  # noqa: F401  (w is a pytest fixture)
 
@@ -92,8 +97,11 @@ def test_staff_numbers_are_unique_but_blank_is_allowed(w):
     StaffProfile.objects.create(user=w.teacher_t, staff_number="")
     StaffProfile.objects.create(user=w.teacher_u, staff_number="")
     StaffProfile.objects.filter(user=w.teacher_t).update(staff_number="TSC-9")
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityError), transaction.atomic():
         StaffProfile.objects.filter(user=w.teacher_u).update(staff_number="TSC-9")
+    # Case doesn't make a different number, even bypassing the API (Django admin, races).
+    with pytest.raises(IntegrityError), transaction.atomic():
+        StaffProfile.objects.filter(user=w.teacher_u).update(staff_number="tsc-9")
 
 
 # ---------------------------------------------------------------- admin edits details
@@ -151,10 +159,14 @@ def test_admin_detail_validation(w, who, payload, field):
     assert resp.status_code == 400 and field in resp.json()
 
 
-def test_date_of_birth_must_be_in_the_past(w):
-    tomorrow = (timezone.localdate() + timedelta(days=1)).isoformat()
-    resp = client_for(w.admin).patch(f"{ADMIN_USERS}/{w.student_a.id}/", {"date_of_birth": tomorrow}, format="json")
+@pytest.mark.parametrize("days_ahead", [0, 1])
+def test_date_of_birth_must_be_in_the_past(w, days_ahead):
+    day = (timezone.localdate() + timedelta(days=days_ahead)).isoformat()
+    resp = client_for(w.admin).patch(f"{ADMIN_USERS}/{w.student_a.id}/", {"date_of_birth": day}, format="json")
     assert resp.status_code == 400 and "date_of_birth" in resp.json()
+    yesterday = (timezone.localdate() - timedelta(days=1)).isoformat()
+    ok = client_for(w.admin).patch(f"{ADMIN_USERS}/{w.student_a.id}/", {"date_of_birth": yesterday}, format="json")
+    assert ok.status_code == 200
 
 
 def test_duplicate_staff_number_is_a_friendly_error(w):
@@ -186,6 +198,56 @@ def test_user_changes_own_password(w, who):
     assert resp.status_code == 200, resp.json()
     assert login(user.username, "Blue-Heron-Valley-42").status_code == 200
     assert login(user.username, "pw-not-real-123").status_code == 401
+
+
+def test_password_change_signs_out_every_other_session(w):
+    """A pupil whose classmate knows their password changes it: the classmate's session must die now."""
+    old = login("TEST-A", "pw-not-real-123").json()
+    stale = APIClient()
+    stale.credentials(HTTP_AUTHORIZATION=f"Bearer {old['access']}")
+    assert stale.get(f"{API}/me/").status_code == 200
+
+    me = APIClient()
+    me.credentials(HTTP_AUTHORIZATION=f"Bearer {old['access']}")
+    resp = me.post(PASSWORD, {"current_password": "pw-not-real-123", "new_password": "Blue-Heron-Valley-42"},
+                   format="json")
+    assert resp.status_code == 200
+    fresh = resp.json()
+
+    assert stale.get(f"{API}/me/").status_code == 401  # old access token
+    assert APIClient().post("/api/auth/token/refresh/", {"refresh": old["refresh"]},
+                            format="json").status_code == 401  # old refresh token
+    # The session that made the change gets new tokens and stays signed in.
+    mine = APIClient()
+    mine.credentials(HTTP_AUTHORIZATION=f"Bearer {fresh['access']}")
+    assert mine.get(f"{API}/me/").json()["id"] == w.student_a.id
+    assert APIClient().post("/api/auth/token/refresh/", {"refresh": fresh["refresh"]}, format="json").status_code == 200
+
+
+def test_admin_password_reset_also_signs_out_old_sessions(w):
+    old = login("TEST-A", "pw-not-real-123").json()
+    assert client_for(w.admin).post(f"{ADMIN_USERS}/{w.student_a.id}/reset-password/").status_code == 200
+    stale = APIClient()
+    stale.credentials(HTTP_AUTHORIZATION=f"Bearer {old['access']}")
+    assert stale.get(f"{API}/me/").status_code == 401
+    assert APIClient().post("/api/auth/token/refresh/", {"refresh": old["refresh"]}, format="json").status_code == 401
+
+
+def test_tokens_without_a_password_stamp_are_refused(w):
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    unstamped = RefreshToken.for_user(w.student_a)  # how tokens looked before this change
+    c = APIClient()
+    c.credentials(HTTP_AUTHORIZATION=f"Bearer {unstamped.access_token}")
+    assert c.get(f"{API}/me/").status_code == 401
+    assert APIClient().post("/api/auth/token/refresh/", {"refresh": str(unstamped)}, format="json").status_code == 401
+
+
+def test_refresh_refused_for_deactivated_users(w):
+    tokens = login("TEST-A", "pw-not-real-123").json()
+    w.student_a.is_active = False
+    w.student_a.save()
+    assert APIClient().post("/api/auth/token/refresh/", {"refresh": tokens["refresh"]}, format="json").status_code == 401
 
 
 def test_password_change_needs_the_current_password(w):
@@ -400,3 +462,60 @@ def test_a_student_who_moved_class_drops_off_the_old_grid(w):
     assert {r["student"] for r in body["results"]} == {w.student_a.id}
     resp = client_for(w.teacher_t).post(GRID, cells(w, [(w.student_b, w.maths, 50)]), format="json")
     assert resp.status_code == 400
+
+
+def test_moved_pupil_keeps_one_result_and_the_new_teacher_can_correct_it(w):
+    """Pupil had Maths in class_a this term, then moved to class_b (whose Maths teacher is teacher_u)."""
+    TeachingAssignment.objects.create(teacher=w.teacher_u, school_class=w.class_b, subject=w.maths)
+    StudentProfile.objects.filter(user=w.student_a).update(school_class=w.class_b)
+    c = client_for(w.teacher_u)
+    body = c.get(GRID, {"school_class": w.class_b.id}).json()
+    assert (w.student_a.id, w.maths.id, "60.00") in {(r["student"], r["subject"], r["score"]) for r in body["results"]}
+    resp = c.post(GRID, cells(w, [(w.student_a, w.maths, 77)], cls=w.class_b), format="json")
+    assert resp.status_code == 200, resp.content
+    result = Result.objects.get(student=w.student_a, subject=w.maths, term=w.term_hidden)
+    # Level re-graded on the new class's scale (Grade 8 = JSS 8-level).
+    assert (result.score, result.school_class, result.entered_by) == (77, w.class_b, w.teacher_u)
+    assert result.level == level_for(77, "grade-8")[0] == "EE2"
+
+
+def test_deactivated_pupils_are_not_in_the_grid_and_take_no_results(w):
+    w.student_b.is_active = False
+    w.student_b.save()
+    body = client_for(w.teacher_t).get(GRID, {"school_class": w.class_a.id, "term": w.term_pub.id}).json()
+    assert [s["id"] for s in body["students"]] == [w.student_a.id]
+    assert {r["student"] for r in body["results"]} == {w.student_a.id}
+    resp = client_for(w.teacher_t).post(GRID, cells(w, [(w.student_b, w.maths, 50)]), format="json")
+    assert resp.status_code == 400 and "student" in resp.json()["cells"][0]
+
+
+def test_grid_query_count_does_not_grow_with_the_class(w, science, django_assert_max_num_queries):
+    for i in range(30):
+        s = get_user_model().objects.create_user(username=f"TEST-X{i}", password="x", role="student")
+        StudentProfile.objects.create(user=s, school_class=w.class_a)
+    students = list(StudentProfile.objects.filter(school_class=w.class_a).values_list("user_id", flat=True))
+    payload = {"school_class": w.class_a.id, "term": w.term_hidden.id,
+               "cells": [{"student": s, "subject": subj.id, "score": 30 + (s % 70)}
+                         for s in students for subj in (w.maths, science)]}
+    c = client_for(w.teacher_t)
+    with django_assert_max_num_queries(25):
+        resp = c.post(GRID, payload, format="json")
+    assert resp.status_code == 200 and len(resp.json()["results"]) == 2 * len(students)
+    with django_assert_max_num_queries(12):
+        assert c.get(GRID, {"school_class": w.class_a.id}).status_code == 200
+    # Levels are worked out even though bulk writes skip Result.save().
+    for r in Result.objects.filter(term=w.term_hidden, school_class=w.class_a):
+        assert r.level == level_for(r.score, "grade-4")[0]
+
+
+def test_simultaneous_saves_get_a_conflict_not_a_server_error(w):
+    with mock.patch.object(Result.objects, "bulk_create", side_effect=IntegrityError("duplicate key")):
+        resp = client_for(w.teacher_t).post(GRID, cells(w, [(w.student_b, w.maths, 50)]), format="json")
+    assert resp.status_code == 409 and "Reload" in resp.json()["detail"]
+    assert not Result.objects.filter(student=w.student_b, term=w.term_hidden).exists()
+
+
+def test_grid_rejects_oversized_payloads(w):
+    payload = {"school_class": w.class_a.id, "term": w.term_hidden.id,
+               "cells": [{"student": w.student_a.id, "subject": w.maths.id, "score": 1}] * 2001}
+    assert client_for(w.teacher_t).post(GRID, payload, format="json").status_code == 400

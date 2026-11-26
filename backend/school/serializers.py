@@ -1,8 +1,9 @@
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import serializers
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import APIException, PermissionDenied
 
-from .grading import section_for_grade
+from .grading import level_for, section_for_grade
 from .models import (
     Announcement,
     FeeRecord,
@@ -313,7 +314,9 @@ class ResultGridSerializer(serializers.Serializer):
     its comment; a null score removes the result.
     """
 
-    MAX_CELLS = 5000
+    # Payload guard only: cells must also be unique (student, subject) pairs from this
+    # class's active students and the caller's subjects, so real tables stay far smaller.
+    MAX_CELLS = 2000
 
     school_class = serializers.PrimaryKeyRelatedField(queryset=SchoolClass.objects.all())
     term = serializers.PrimaryKeyRelatedField(queryset=Term.objects.all())
@@ -329,7 +332,7 @@ class ResultGridSerializer(serializers.Serializer):
                 raise PermissionDenied(NOT_YOUR_CLASS)
             if term.results_published:
                 raise PermissionDenied(PUBLISHED_LOCKED)
-        in_class = set(StudentProfile.objects.filter(school_class=cls).values_list("user_id", flat=True))
+        in_class = set(grid_students(cls).values_list("user_id", flat=True))
         seen, errors = set(), []
         for cell in attrs["cells"]:
             err = {}
@@ -350,43 +353,69 @@ class ResultGridSerializer(serializers.Serializer):
         return attrs
 
     def save(self):
-        from django.db import transaction
-
         data, user = self.validated_data, self.context["request"].user
         cls, term, cells = data["school_class"], data["term"], data["cells"]
-        with transaction.atomic():
-            existing = {
-                (r.student_id, r.subject_id): r
-                for r in Result.objects.select_for_update().filter(
-                    school_class=cls, term=term,
-                    student_id__in={c["student"] for c in cells}, subject_id__in={c["subject"] for c in cells},
-                )
-            }
-            for cell in cells:
-                result = existing.get((cell["student"], cell["subject"]))
-                if cell["score"] is None:
-                    if result is not None:
-                        result.delete()
-                    continue
-                if result is None:
-                    result = Result(student_id=cell["student"], subject_id=cell["subject"], school_class=cls, term=term)
-                result.score, result.entered_by = cell["score"], user
-                result.save()
+        now = timezone.now()
+        try:
+            with transaction.atomic():
+                # One result per (student, subject, term) whatever the class: a pupil who
+                # moved class mid-term keeps a single result, which now belongs to this class.
+                existing = {
+                    (r.student_id, r.subject_id): r
+                    for r in Result.objects.select_for_update().filter(
+                        term=term,
+                        student_id__in={c["student"] for c in cells}, subject_id__in={c["subject"] for c in cells},
+                    )
+                }
+                to_create, to_update, to_delete = [], [], []
+                for cell in cells:
+                    result = existing.get((cell["student"], cell["subject"]))
+                    if cell["score"] is None:
+                        if result is not None:
+                            to_delete.append(result.pk)
+                        continue
+                    if result is None:
+                        result = Result(student_id=cell["student"], subject_id=cell["subject"], term=term)
+                        to_create.append(result)
+                    else:
+                        to_update.append(result)
+                    # bulk_* skip Result.save(), so set what it (and auto_now) would.
+                    result.school_class, result.score, result.entered_by = cls, cell["score"], user
+                    result.level = level_for(result.score, cls.grade)[0]
+                    result.updated_at = now
+                Result.objects.filter(pk__in=to_delete).delete()
+                Result.objects.bulk_update(to_update, ["school_class", "score", "level", "entered_by", "updated_at"])
+                Result.objects.bulk_create(to_create)
+        except IntegrityError as exc:
+            # Someone else created one of these results between our read and write.
+            raise ResultsConflict() from exc
         return grid_payload(user, cls, term)
+
+
+class ResultsConflict(APIException):
+    status_code = 409
+    default_detail = "Someone else saved results for this class at the same moment. Reload the table and try again."
+    default_code = "conflict"
+
+
+def grid_students(school_class):
+    """Active pupils currently in a class (deactivated accounts never appear or take results)."""
+    return StudentProfile.objects.filter(school_class=school_class, user__is_active=True)
 
 
 def grid_payload(user, school_class, term) -> dict:
     """Body of GET/POST /api/school/results/grid/: students, the user's subjects, and saved scores."""
     subjects = list(grid_subjects(user, school_class))
-    students = (
-        StudentProfile.objects.filter(school_class=school_class)
-        .select_related("user")
-        .order_by("user__last_name", "user__first_name", "user__username")
+    students = list(
+        grid_students(school_class).select_related("user").order_by("user__last_name", "user__first_name", "user__username")
     )
-    results = Result.objects.filter(
-        school_class=school_class, term=term, subject__in=subjects,
-        student__student_profile__school_class=school_class,
-    ).order_by("student_id", "subject_id")
+    # Keyed by pupil, not by the class on the result: a pupil who moved in mid-term shows
+    # the result they already have, so the teacher can see and correct it.
+    results = (
+        Result.objects.filter(term=term, subject__in=subjects, student_id__in=[s.user_id for s in students])
+        .select_related("school_class")
+        .order_by("student_id", "subject_id")
+    )
     return {
         "school_class": {"id": school_class.id, "name": school_class.name, "grade": school_class.grade,
                          "section": school_class.section},

@@ -444,10 +444,19 @@ export function saveResultGrid(grid: { school_class: number; term: number; cells
   return apiFetch<ResultGrid>("/api/school/results/grid/", { method: "POST", body: grid });
 }
 
-/** Change your own password. On 400, field errors are under current_password / new_password. */
-export function changePassword(data: { current_password: string; new_password: string }) {
-  return apiFetch<{ detail: string }>("/api/auth/password/", { method: "POST", body: data });
+/**
+ * Change your own password. The server signs out every other session and returns
+ * fresh tokens for this one, which are stored so you stay signed in.
+ * On 400, field errors are under current_password / new_password.
+ */
+export async function changePassword(data: { current_password: string; new_password: string }) {
+  const res = await apiFetch<{ detail: string } & Tokens>("/api/auth/password/", { method: "POST", body: data });
+  tokenStore.set({ access: res.access, refresh: res.refresh });
+  return { detail: res.detail };
 }
+
+/** Phone format the backend accepts (school/models.py phone_validator), for input `pattern`. */
+export const PHONE_PATTERN = "\\+?[0-9][0-9 ]{6,18}[0-9]";
 
 /** Staff: the classes they teach or lead, with student lists. */
 export function getClasses() {
