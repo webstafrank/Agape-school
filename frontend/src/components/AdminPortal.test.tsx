@@ -38,7 +38,8 @@ const CLS: AdminClass = { id: 3, name: "Grade 5 Demo", grade: "grade-5", grade_l
   class_teacher: null, class_teacher_name: null, student_count: 2 };
 const user = (o: Partial<AdminUser>): AdminUser => ({ id: 20, username: "TEST-A", first_name: "Testa", last_name: "Example",
   email: "", role: "student", is_active: true, school_class: 3, class_name: "Grade 5 Demo", last_login: null,
-  date_joined: "2026-01-01T00:00:00Z", ...o });
+  date_joined: "2026-01-01T00:00:00Z", date_of_birth: null, guardian_name: "", guardian_phone: "", staff_number: "",
+  phone: "", ...o });
 const term = (o: Partial<Term>): Term => ({ id: 2, year: 2026, name: "term-2", label: "Term 2 2026", start_date: "2026-04-28",
   end_date: "2026-08-01", is_current: false, results_published: false, ...o });
 

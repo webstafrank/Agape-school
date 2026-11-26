@@ -268,15 +268,33 @@ export type SchoolClassInfo = {
   year: number;
 };
 
+export type StudentDetails = {
+  /** ISO date or null if the office hasn't recorded it. */
+  date_of_birth: string | null;
+  guardian_name: string;
+  guardian_phone: string;
+};
+
+export type StaffDetails = { staff_number: string; phone: string };
+
 export type SchoolProfile = {
   id: number;
   username: string;
   name: string;
   role: Role;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  date_joined?: string;
+  last_login?: string | null;
   /** Students only; null if not yet placed in a class. */
-  school_class?: SchoolClassInfo | null;
+  school_class?: (SchoolClassInfo & { class_teacher_name?: string | null }) | null;
   /** Staff only: the class + subject pairs they teach. */
   assignments?: TeachingAssignment[];
+  /** Staff only: classes they are class teacher of. */
+  class_teacher_of?: { id: number; name: string }[];
+  /** Office details, read-only to the user (admins edit them). */
+  details?: StudentDetails | StaffDetails;
 };
 
 export type TeachingAssignment = {
@@ -388,6 +406,49 @@ export function saveResultSheet(sheet: { school_class: number; subject: number; 
   return apiFetch<Result[]>("/api/school/results/sheet/", { method: "POST", body: sheet });
 }
 
+// Results table: students down the side, the caller's subjects across the top.
+export type GridResult = {
+  student: number;
+  subject: number;
+  /** Decimal as a string, e.g. "81.00". */
+  score: string;
+  level: string;
+  level_label: string;
+  comment: string;
+};
+
+export type ResultGrid = {
+  school_class: { id: number; name: string; grade: string; section: string };
+  term: Term;
+  /** True when staff can no longer change this term (results published). */
+  locked: boolean;
+  subjects: Subject[];
+  students: { id: number; username: string; name: string }[];
+  results: GridResult[];
+};
+
+export type GridCell = { student: number; subject: number; score: number | null };
+
+/** Staff: only classes they teach (404 otherwise). Term defaults to the current term. */
+export function getResultGrid(schoolClass: number, term?: number) {
+  const q = new URLSearchParams({ school_class: String(schoolClass), ...(term ? { term: String(term) } : {}) });
+  return apiFetch<ResultGrid>(`/api/school/results/grid/?${q}`);
+}
+
+/**
+ * Saves changed cells all-or-nothing and returns the fresh table. A null score
+ * removes that result; an existing comment is kept. On 400, `data.cells` holds
+ * per-cell errors in the same order as `cells`.
+ */
+export function saveResultGrid(grid: { school_class: number; term: number; cells: GridCell[] }) {
+  return apiFetch<ResultGrid>("/api/school/results/grid/", { method: "POST", body: grid });
+}
+
+/** Change your own password. On 400, field errors are under current_password / new_password. */
+export function changePassword(data: { current_password: string; new_password: string }) {
+  return apiFetch<{ detail: string }>("/api/auth/password/", { method: "POST", body: data });
+}
+
 /** Staff: the classes they teach or lead, with student lists. */
 export function getClasses() {
   return apiFetch<StaffClass[]>("/api/school/classes/");
@@ -447,6 +508,13 @@ export type AdminUser = {
   class_name: string | null;
   last_login: string | null;
   date_joined: string;
+  /** Students only (blank/null otherwise). */
+  date_of_birth: string | null;
+  guardian_name: string;
+  guardian_phone: string;
+  /** Staff only (blank otherwise). */
+  staff_number: string;
+  phone: string;
 };
 
 export type AdminUserInput = {
@@ -456,6 +524,11 @@ export type AdminUserInput = {
   email: string;
   role: Role;
   school_class: number | null;
+  date_of_birth?: string | null;
+  guardian_name?: string;
+  guardian_phone?: string;
+  staff_number?: string;
+  phone?: string;
 };
 
 export type AdminClass = {

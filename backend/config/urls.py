@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 
-from accounts.views import MeView, RoleTokenObtainPairView
+from accounts.views import MeView, PasswordChangeView, RoleTokenObtainPairView
 from core.views import HealthView
 
 urlpatterns = [
@@ -26,6 +26,8 @@ urlpatterns = [
     path('api/admin/', include('adminapi.urls')),
     # Current user
     path('api/auth/me/', MeView.as_view(), name='me'),
+    # Change own password
+    path('api/auth/password/', PasswordChangeView.as_view(), name='password_change'),
 ]
 
 handler404 = 'core.views.not_found'

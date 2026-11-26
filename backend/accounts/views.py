@@ -5,7 +5,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .serializers import RoleTokenObtainPairSerializer, UserSerializer
+from .serializers import PasswordChangeSerializer, RoleTokenObtainPairSerializer, UserSerializer
 
 
 class RoleTokenObtainPairView(TokenObtainPairView):
@@ -22,3 +22,18 @@ class MeView(APIView):
 
     def get(self, request: Request) -> Response:
         return Response(UserSerializer(request.user).data)
+
+
+class PasswordChangeView(APIView):
+    """POST /api/auth/password/ — change your own password (current password required)."""
+
+    permission_classes = (permissions.IsAuthenticated,)
+    # Shares the sign-in limit: checking the current password is a guessing surface too.
+    throttle_classes = (ScopedRateThrottle,)
+    throttle_scope = "login"
+
+    def post(self, request: Request) -> Response:
+        serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Password changed."})
