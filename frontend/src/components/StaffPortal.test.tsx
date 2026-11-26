@@ -27,6 +27,7 @@ const api = vi.hoisted(() => ({
   getClass: vi.fn(),
   getClasses: vi.fn(),
   getResults: vi.fn(),
+  getResultGrid: vi.fn(),
   getTimetable: vi.fn(),
   getAnnouncements: vi.fn(),
   createAnnouncement: vi.fn(),
@@ -158,9 +159,31 @@ describe("StaffResults picker", () => {
     api.getTerms.mockResolvedValue([term({ id: 3, label: "Term 3 2026", is_current: false }), term()]);
     api.getClass.mockResolvedValue(CLASS);
     api.getResults.mockResolvedValue(EXISTING);
+    api.getResultGrid.mockResolvedValue({
+      school_class: { id: 3, name: "Grade 5 Demo", grade: "grade-5", section: "primary" }, term: term(), locked: false,
+      subjects: [{ id: 1, name: "Mathematics", code: "maths" }], students: CLASS.students,
+      results: [{ student: 11, subject: 1, score: "64.00", level: "ME", level_label: "Meeting Expectations", comment: "" }],
+    });
   });
 
-  it("defaults to the first assignment and the current term", async () => {
+  it("defaults to the results table for the first class and the current term", async () => {
+    render(<StaffResults />);
+    expect(await screen.findByRole("table", { name: "Grade 5 Demo · Term 2 2026" })).toBeInTheDocument();
+    expect(api.getResultGrid).toHaveBeenCalledWith(3, 2);
+    expect(screen.getByLabelText("Mathematics score for Testa Example")).toHaveValue("64");
+    expect(screen.getByRole("button", { name: "Results table" })).toHaveAttribute("aria-pressed", "true");
+    // Grade 5 and Grade 6 each appear once in the class picker.
+    expect(within(screen.getByLabelText("Class")).getAllByRole("option").map((o) => o.textContent)).toEqual(["Grade 5 Demo", "Grade 6 Demo"]);
+  });
+
+  it("keeps the per-subject sheet with comments as a second view", async () => {
+    render(<StaffResults />);
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Comments by subject" }));
+    expect(nav.replace).toHaveBeenCalledWith("/portal/staff/results?view=comments&class=3&subject=1&term=2");
+  });
+
+  it("defaults the comments view to the first assignment and the current term", async () => {
+    nav.search = "view=comments";
     render(<StaffResults />);
     expect(await screen.findByRole("heading", { name: "Grade 5 Demo · Mathematics · Term 2 2026" })).toBeInTheDocument();
     await waitFor(() => expect(api.getResults).toHaveBeenCalledWith({ school_class: 3, subject: 1, term: 2 }));
@@ -168,11 +191,11 @@ describe("StaffResults picker", () => {
   });
 
   it("follows the class and subject in the URL and updates it on change", async () => {
-    nav.search = "class=4&subject=2";
+    nav.search = "view=comments&class=4&subject=2";
     render(<StaffResults />);
     expect(await screen.findByRole("heading", { name: /Grade 6 Demo · English/ })).toBeInTheDocument();
     await userEvent.setup().selectOptions(screen.getByLabelText("Term"), "3");
-    expect(nav.replace).toHaveBeenCalledWith("/portal/staff/results?class=4&subject=2&term=3");
+    expect(nav.replace).toHaveBeenCalledWith("/portal/staff/results?view=comments&class=4&subject=2&term=3");
   });
 
   it("explains when the teacher has no assignments", async () => {
