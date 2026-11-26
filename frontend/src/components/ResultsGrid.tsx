@@ -40,6 +40,11 @@ function normalise(value: string): string {
   return n === null ? "" : n === undefined ? value.trim() : String(n);
 }
 
+function isGrid(value: unknown): value is Grid {
+  const g = value as Partial<Grid> | null;
+  return !!g && Array.isArray(g.results) && Array.isArray(g.students) && Array.isArray(g.subjects) && !!g.school_class && !!g.term;
+}
+
 /** Mean to 1 decimal place, or blank when nothing is filled in. */
 function average(scores: number[]): string {
   if (scores.length === 0) return "";
@@ -220,6 +225,11 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
     inFlight.current = true;
     try {
       const fresh = await saveResultGrid({ school_class: grid.school_class.id, term: grid.term.id, cells });
+      if (!isGrid(fresh)) {
+        // The save went through but the reply isn't a table: say so truthfully, keep what's on screen.
+        setStatus({ kind: "error", message: copy.savedNoRefresh });
+        return;
+      }
       // Keep anything typed while the save was in flight; everything else shows what was saved.
       const now = latest.current;
       const sentValue = new Map(sent.map((s) => [s.key, s.value]));
@@ -246,6 +256,9 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
         setServerErrors(mapped);
         const n = Object.keys(mapped).length;
         setStatus({ kind: "error", message: n ? copy.fixCount(n) : actionError(err, copy.saveFailed) });
+      } else if (err instanceof ApiError && err.status === 409) {
+        // The server's wording says "reload"; reloading would throw typed scores away.
+        setStatus({ kind: "error", message: copy.conflict });
       } else {
         const session = describeError(err).kind === "session";
         setStatus({ kind: "error", message: session ? copy.sessionEnded : actionError(err, copy.saveFailed) });

@@ -44,7 +44,7 @@ export const portalShell = {
   logout: "Log out",
   unavailable: "We couldn't reach the school server. Please check your connection and try again.",
   retry: "Try again",
-  leaveUnsaved: "You have unsaved changes on this page. Leave without saving them?",
+  leaveUnsaved: "Some changes on this page aren't saved yet. Leave anyway?",
 };
 
 /** Student portal pages. */
@@ -191,13 +191,17 @@ export const staffPortal = {
     fixCount: (n: number) => `${n} score${n === 1 ? " needs" : "s need"} fixing before you can save.`,
     fixListTitle: "Fix these scores:",
     saveFailed: "Your scores weren't saved. They are still here: please try again.",
+    conflict:
+      "Someone else saved this class at the same moment, so nothing was saved. Your scores are still here: press Save table again.",
+    savedNoRefresh:
+      "Your scores were saved, but the table couldn't refresh to show the new levels. Reload the page to see them.",
     sessionEnded:
       "Your session has ended, so nothing was saved. Your scores are still here: sign in again in a new tab, then press Save table.",
     locked:
       "This term's results are published, so the table is read-only. Ask an administrator to unpublish the term if something needs correcting.",
     noStudents: "There are no students in this class yet.",
     noSubjects: "You don't teach any subjects in this class.",
-    confirmLeave: "You have unsaved changes on this page. Leave without saving them?",
+    confirmLeave: "Some changes on this page aren't saved yet. Leave anyway?",
   },
   announcements: {
     title: "Class announcements",

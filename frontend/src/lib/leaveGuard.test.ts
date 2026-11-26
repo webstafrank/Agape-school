@@ -20,7 +20,7 @@ describe("leaveGuard", () => {
     expect(hasUnsavedWork()).toBe(true);
     expect(confirmLeave()).toBe(false);
     expect(confirmLeave()).toBe(true);
-    expect(confirm).toHaveBeenCalledWith("You have unsaved changes on this page. Leave without saving them?");
+    expect(confirm).toHaveBeenCalledWith("Some changes on this page aren't saved yet. Leave anyway?");
     dirty = false;
     expect(hasUnsavedWork()).toBe(false);
     off();

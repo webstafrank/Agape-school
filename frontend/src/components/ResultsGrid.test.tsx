@@ -352,6 +352,28 @@ describe("ResultsGrid", () => {
     expect(box("Mathematics", "Testo Example")).toHaveAttribute("aria-invalid", "true");
   });
 
+  it("on a 409 conflict says to press Save again (not reload) and keeps the scores", async () => {
+    api.saveResultGrid.mockRejectedValueOnce(new ApiError(409, { detail: "Reload the table and try again." }));
+    const user = userEvent.setup();
+    render(<ResultsGrid grid={grid()} />);
+    await user.type(box("Mathematics", "Testo Example"), "70");
+    await user.click(saveButton());
+    expect(await screen.findByRole("status")).toHaveTextContent("press Save table again");
+    expect(screen.getByRole("status")).not.toHaveTextContent(/reload/i);
+    expect(box("Mathematics", "Testo Example")).toHaveValue("70");
+  });
+
+  it("a save that succeeds with an unexpected reply says it saved, not that the server is unreachable", async () => {
+    api.saveResultGrid.mockResolvedValueOnce(null);
+    const user = userEvent.setup();
+    render(<ResultsGrid grid={grid()} />);
+    await user.type(box("Mathematics", "Testo Example"), "70");
+    await user.click(saveButton());
+    expect(await screen.findByRole("status")).toHaveTextContent("Your scores were saved");
+    expect(screen.getByRole("status")).not.toHaveTextContent(/couldn't reach/i);
+    expect(box("Mathematics", "Testo Example")).toHaveValue("70");
+  });
+
   it("accepts a comma decimal from phone keypads and sends it as a number", async () => {
     api.saveResultGrid.mockResolvedValueOnce(grid());
     const user = userEvent.setup();
@@ -463,7 +485,7 @@ describe("StaffResults table view", () => {
     await user.type(await screen.findByLabelText("Mathematics score for Testo Example"), "70");
 
     await user.selectOptions(screen.getByLabelText("Term"), "3");
-    expect(confirm).toHaveBeenCalledWith("You have unsaved changes on this page. Leave without saving them?");
+    expect(confirm).toHaveBeenCalledWith("Some changes on this page aren't saved yet. Leave anyway?");
     expect(nav.replace).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Mathematics score for Testo Example")).toHaveValue("70");
 
@@ -504,7 +526,7 @@ describe("StaffResults table view", () => {
 
     await user.type(screen.getByLabelText("Mathematics score for Testo Example"), "70");
     expect(click()).toBe(false); // cancelled: navigation blocked, scores kept
-    expect(confirm).toHaveBeenCalledWith("You have unsaved changes on this page. Leave without saving them?");
+    expect(confirm).toHaveBeenCalledWith("Some changes on this page aren't saved yet. Leave anyway?");
     expect(screen.getByLabelText("Mathematics score for Testo Example")).toHaveValue("70");
     expect(click()).toBe(true); // confirmed: allowed through
   });
