@@ -57,8 +57,16 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
   const [values, setValues] = useState<Values>(original);
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  // Bad scores are flagged once you leave the cell (or try to save), not mid-typing.
+  const [touched, setTouched] = useState<Set<string>>(() => new Set());
+  const [attempted, setAttempted] = useState(false);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const saveButton = useRef<HTMLButtonElement>(null);
+  // Latest typed values, read after an await so keystrokes made during a save survive it.
+  const latest = useRef<Values>(values);
+  useEffect(() => {
+    latest.current = values;
+  }, [values]);
 
   const { students, subjects, locked } = grid;
   const rows = students.length;
@@ -69,14 +77,17 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
 
   // Cells in reading order (row by row) that differ from what's saved.
   const changed: { student: number; subject: number; key: string }[] = [];
-  const errors: Record<string, string> = {};
+  const invalid: string[] = []; // blocks saving, shown or not
+  const errors: Record<string, string> = {}; // shown to the teacher
   for (const st of students) {
     for (const sub of subjects) {
       const key = cellKey(st.id, sub.id);
       if (normalise(values[key] ?? "") === original[key]) continue;
       changed.push({ student: st.id, subject: sub.id, key });
-      if (parseScore(values[key]) === undefined) errors[key] = copy.invalidScore;
-      else if (serverErrors[key]) errors[key] = serverErrors[key];
+      if (parseScore(values[key]) === undefined) {
+        invalid.push(key);
+        if (attempted || touched.has(key)) errors[key] = copy.invalidScore;
+      } else if (serverErrors[key]) errors[key] = serverErrors[key];
     }
   }
   const dirty = changed.length > 0;
@@ -90,7 +101,10 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
   // Warn before leaving the page with unsaved scores.
   useEffect(() => {
     if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ""; // older browsers only show the prompt with this set
+    };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
@@ -123,7 +137,13 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
       delete next[key];
       return next;
     });
-    if (status.kind !== "idle") setStatus({ kind: "idle" });
+    // Typing during a save is allowed (it's kept), but must not end the "saving" state early.
+    if (status.kind !== "idle" && status.kind !== "saving") setStatus({ kind: "idle" });
+  }
+
+  function onCellBlur(key: string) {
+    if (touched.has(key)) return;
+    setTouched((prev) => new Set(prev).add(key));
   }
 
   function onCellKeyDown(e: KeyboardEvent<HTMLInputElement>, r: number, c: number, key: string) {
@@ -177,22 +197,36 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
 
   async function save() {
     if (saving || locked || !dirty) return;
-    if (errorKeys.length) {
-      setStatus({ kind: "error", message: copy.fixCount(errorKeys.length) });
-      focusKey(errorKeys[0]);
+    const blocking = [...new Set([...invalid, ...errorKeys])];
+    if (blocking.length) {
+      setAttempted(true);
+      setStatus({ kind: "error", message: copy.fixCount(blocking.length) });
+      focusKey(blocking[0]);
       return;
     }
-    const cells: GridCell[] = changed.map(({ student, subject, key }) => ({
+    // What was sent, in order: server cell errors map back by position in this list.
+    const sent = changed.map(({ student, subject, key }) => ({ key, value: values[key] ?? "", student, subject }));
+    const cells: GridCell[] = sent.map(({ student, subject, value }) => ({
       student,
       subject,
-      score: parseScore(values[key]) as number | null,
+      score: parseScore(value) as number | null,
     }));
     setStatus({ kind: "saving" });
     try {
       const fresh = await saveResultGrid({ school_class: grid.school_class.id, term: grid.term.id, cells });
+      // Keep anything typed while the save was in flight; everything else shows what was saved.
+      const now = latest.current;
+      const sentValue = new Map(sent.map((s) => [s.key, s.value]));
+      const next = valuesFrom(fresh);
+      for (const key of Object.keys(next)) {
+        const before = sentValue.has(key) ? sentValue.get(key)! : values[key] ?? "";
+        if ((now[key] ?? "") !== before) next[key] = now[key] ?? "";
+      }
       setGrid(fresh);
-      setValues(valuesFrom(fresh));
+      setValues(next);
       setServerErrors({});
+      setAttempted(false);
+      setTouched(new Set());
       setStatus({ kind: "saved", message: copy.savedCount(cells.length) });
     } catch (err) {
       // Whatever went wrong, every typed score stays on screen.
@@ -201,7 +235,7 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
         const mapped: Record<string, string> = {};
         cellErrors.forEach((fieldErrors, i) => {
           const msg = Object.values(fieldErrors ?? {}).flat().join(" ");
-          if (msg && changed[i]) mapped[changed[i].key] = msg;
+          if (msg && sent[i]) mapped[sent[i].key] = msg;
         });
         setServerErrors(mapped);
         const n = Object.keys(mapped).length;
@@ -226,6 +260,7 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
   }
 
   const caption = copy.caption(grid.school_class.name, grid.term.label);
+  const captionId = `grid-caption-${grid.school_class.id}-${grid.term.id}`;
   if (rows === 0 || cols === 0) {
     return (
       <section aria-label={caption}>
@@ -292,10 +327,15 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
         </div>
       )}
 
-      {/* The table scrolls inside its own box, so the page never scrolls sideways on a phone. */}
-      <div className="max-h-[70vh] max-w-full overflow-auto rounded-2xl border border-surface-border bg-surface">
-        <table className="w-full border-separate border-spacing-0 text-sm">
-          <caption className="px-4 pt-4 pb-3 text-left font-display text-xl font-bold text-primary-900">{caption}</caption>
+      {/* Outside the scroll box so it stays in view when the table scrolls sideways. */}
+      <h2 id={captionId} className="mb-3 text-xl font-bold text-primary-900">{caption}</h2>
+      {/*
+        The table scrolls inside its own box, so the page never scrolls sideways on a phone.
+        `relative` contains the absolutely positioned sr-only text in LevelBadge; without it
+        that text escapes the box and widens the whole page.
+      */}
+      <div className="relative max-h-[70vh] max-w-full overflow-auto rounded-2xl border border-surface-border bg-surface">
+        <table aria-labelledby={captionId} className="w-full border-separate border-spacing-0 text-sm">
           <thead>
             <tr>
               <th
@@ -329,7 +369,7 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
                 <tr key={st.id}>
                   <th
                     scope="row"
-                    className="sticky left-0 z-10 max-w-40 border-b border-surface-border bg-surface px-3 py-2 text-left align-top sm:max-w-none"
+                    className="sticky left-0 z-10 min-w-36 max-w-44 border-b border-surface-border bg-surface px-3 py-2 text-left align-top sm:min-w-52 sm:max-w-72"
                   >
                     <span className="block font-semibold text-primary-900">
                       <span aria-hidden="true" className="mr-1.5 inline-block w-5 text-right text-xs font-normal text-ink-muted tabular-nums">
@@ -368,8 +408,9 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
                             autoComplete="off"
                             spellCheck={false}
                             value={value}
-                            readOnly={locked || saving}
+                            readOnly={locked}
                             aria-readonly={locked || undefined}
+                            onBlur={() => onCellBlur(key)}
                             aria-label={copy.cellLabel(sub.name, st.name)}
                             aria-invalid={error ? true : undefined}
                             aria-describedby={error || isChanged ? noteId : undefined}
@@ -406,17 +447,26 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
               );
             })}
           </tbody>
+          {/* Stays pinned to the bottom of the scroll box, so class averages are always in view. */}
           <tfoot>
-            <tr className="bg-surface-muted">
-              <th scope="row" className="sticky left-0 z-10 bg-surface-muted px-3 py-3 text-left font-bold text-primary-900">
+            <tr>
+              <th
+                scope="row"
+                className="sticky bottom-0 left-0 z-30 border-t border-surface-border bg-surface-muted px-3 py-3 text-left font-bold text-primary-900"
+              >
                 {copy.classAverage}
               </th>
               {subjectScores.map((scores, c) => (
-                <td key={subjects[c].id} className="px-3 py-3 text-center text-base font-bold text-primary-900 tabular-nums">
+                <td
+                  key={subjects[c].id}
+                  className="sticky bottom-0 z-20 border-t border-surface-border bg-surface-muted px-3 py-3 text-center text-base font-bold text-primary-900 tabular-nums"
+                >
                   {average(scores)}
                 </td>
               ))}
-              <td className="px-3 py-3 text-center text-base font-bold text-primary-900 tabular-nums">{average(allScores)}</td>
+              <td className="sticky bottom-0 z-20 border-t border-surface-border bg-surface-muted px-3 py-3 text-center text-base font-bold text-primary-900 tabular-nums">
+                {average(allScores)}
+              </td>
             </tr>
           </tfoot>
         </table>
@@ -453,7 +503,7 @@ export function ResultsGrid({ grid: initial, onDirtyChange }: { grid: Grid; onDi
             type="submit"
             // aria-disabled (not disabled) so focus stays on the button after saving.
             aria-disabled={saveDisabled}
-            className={`min-h-11 rounded-full bg-primary-800 px-8 py-2.5 font-bold text-ink-inverse transition-colors hover:bg-primary-700 ${
+            className={`min-h-11 rounded-full bg-primary-800 px-8 py-2.5 font-bold text-ink-inverse transition-colors hover:bg-primary-700 motion-reduce:transition-none ${
               saveDisabled ? "cursor-not-allowed opacity-60" : ""
             }`}
           >

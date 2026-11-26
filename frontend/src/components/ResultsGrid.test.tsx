@@ -22,6 +22,8 @@ const api = vi.hoisted(() => ({
   getResultGrid: vi.fn(),
   getSchoolProfile: vi.fn(),
   getTerms: vi.fn(),
+  getClass: vi.fn(),
+  getResults: vi.fn(),
 }));
 vi.mock("@/lib/api", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/api")>()), ...api }));
 
@@ -293,6 +295,62 @@ describe("ResultsGrid", () => {
     expect(within(box("Mathematics", "Testa Example").closest("td")!).getByText("ME")).toBeInTheDocument();
   });
 
+  it("keeps scores typed while a save is in flight, and shows the rest as saved", async () => {
+    let finish!: (g: Grid) => void;
+    api.saveResultGrid.mockReturnValueOnce(new Promise<Grid>((resolve) => (finish = resolve)));
+    const user = userEvent.setup();
+    render(<ResultsGrid grid={grid()} />);
+    await user.type(box("Mathematics", "Testo Example"), "70");
+    await user.click(saveButton());
+    expect(screen.getByRole("status")).toHaveTextContent("Saving");
+
+    // A slow connection: the teacher carries on typing during the save.
+    const next = box("English", "Testo Example");
+    expect(next).not.toHaveAttribute("readonly");
+    await user.type(next, "55");
+    expect(screen.getByRole("status")).toHaveTextContent("Saving"); // still saving, not reset by typing
+
+    await act(async () => finish(grid({ results: [...grid().results, cell(12, 1, "70.00")] })));
+    expect(box("Mathematics", "Testo Example")).toHaveValue("70");
+    expect(next).toHaveValue("55"); // not wiped by the fresh table
+    expect(description(next)).toContain("Unsaved");
+    expect(description(box("Mathematics", "Testo Example"))).not.toContain("Unsaved");
+    expect(api.saveResultGrid.mock.calls[0][0].cells).toEqual([{ student: 12, subject: 1, score: 70 }]);
+  });
+
+  it("doesn't call a half-typed score wrong until you leave the cell or save", async () => {
+    const user = userEvent.setup();
+    render(<ResultsGrid grid={grid()} />);
+    const maths = box("Mathematics", "Testo Example");
+    await user.type(maths, "1.");
+    expect(maths).not.toHaveAttribute("aria-invalid");
+    await user.type(maths, "5");
+    await user.clear(maths);
+    await user.type(maths, "abc");
+    expect(maths).not.toHaveAttribute("aria-invalid");
+    await user.tab();
+    expect(maths).toHaveAttribute("aria-invalid", "true");
+
+    // Saving straight from an untouched bad cell still blocks and points at it.
+    const english = box("English", "Testi Example");
+    await user.type(english, "999");
+    expect(english).not.toHaveAttribute("aria-invalid");
+    await user.keyboard("{Control>}s{/Control}");
+    expect(api.saveResultGrid).not.toHaveBeenCalled();
+    expect(english).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("scrolls inside its own positioned box with the class averages pinned to the bottom", () => {
+    render(<ResultsGrid grid={grid()} />);
+    const table = screen.getByRole("table");
+    // `relative` stops LevelBadge's sr-only text widening the page at 375px (seen in a real browser).
+    expect(table.parentElement).toHaveClass("relative", "overflow-auto");
+    // The heading sits outside the scroll box so it doesn't slide away sideways.
+    expect(table.parentElement).not.toContainElement(screen.getByRole("heading", { name: "Grade 5 Demo · Term 2 2026" }));
+    const footer = screen.getByRole("rowheader", { name: "Class average" }).closest("tr")!;
+    within(footer).getAllByRole("cell").forEach((c) => expect(c).toHaveClass("sticky", "bottom-0"));
+  });
+
   it("has no axe violations, including with changed and invalid cells", async () => {
     const user = userEvent.setup();
     const { container } = render(<ResultsGrid grid={grid()} />);
@@ -333,12 +391,27 @@ describe("StaffResults table view", () => {
     await user.type(await screen.findByLabelText("Mathematics score for Testo Example"), "70");
 
     await user.selectOptions(screen.getByLabelText("Term"), "3");
-    expect(confirm).toHaveBeenCalledWith("You have unsaved scores in this table. Leave without saving them?");
+    expect(confirm).toHaveBeenCalledWith("You have unsaved changes on this page. Leave without saving them?");
     expect(nav.replace).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Mathematics score for Testo Example")).toHaveValue("70");
 
     await user.click(screen.getByRole("button", { name: "Comments by subject" }));
     expect(nav.replace).toHaveBeenCalledWith("/portal/staff/results?view=comments&class=3&subject=1&term=2");
+  });
+
+  it("also asks before leaving unsaved comments on the per-subject sheet", async () => {
+    nav.search = "view=comments&class=3&subject=1&term=2";
+    api.getClass.mockResolvedValue({ id: 3, name: "Grade 5 Demo", grade: "grade-5", grade_label: "Grade 5",
+      section: "primary", year: 2026, students: [{ id: 11, username: "TEST-A", name: "Testa Example" }], my_subjects: [] });
+    api.getResults.mockResolvedValue([]);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<StaffResults />);
+    await user.type(await screen.findByLabelText("Comment for Testa Example"), "Good effort");
+    await user.click(screen.getByRole("button", { name: "Results table" }));
+    expect(confirm).toHaveBeenCalled();
+    expect(nav.replace).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Comment for Testa Example")).toHaveValue("Good effort");
   });
 
   it("switches without asking when nothing is unsaved", async () => {

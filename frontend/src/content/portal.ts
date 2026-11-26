@@ -192,7 +192,7 @@ export const staffPortal = {
       "This term's results are published, so the table is read-only. Ask an administrator to unpublish the term if something needs correcting.",
     noStudents: "There are no students in this class yet.",
     noSubjects: "You don't teach any subjects in this class.",
-    confirmLeave: "You have unsaved scores in this table. Leave without saving them?",
+    confirmLeave: "You have unsaved changes on this page. Leave without saving them?",
   },
   announcements: {
     title: "Class announcements",

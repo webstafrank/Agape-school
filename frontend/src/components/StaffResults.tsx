@@ -37,7 +37,7 @@ export function StaffResults() {
 function ResultsPicker({ assignments, terms }: { assignments: Assignments; terms: Terms }) {
   const router = useRouter();
   const params = useSearchParams();
-  // Set by the table; checked before anything that would throw typed scores away.
+  // Set by the table and the comments sheet; checked before anything that would throw typed work away.
   const dirty = useRef(false);
   const onDirtyChange = useCallback((d: boolean) => {
     dirty.current = d;
@@ -87,7 +87,7 @@ function ResultsPicker({ assignments, terms }: { assignments: Assignments; terms
       type="button"
       aria-pressed={view === v}
       onClick={() => view !== v && choose({ view: v })}
-      className={`min-h-11 rounded-full px-5 py-2 text-sm font-bold transition-colors ${
+      className={`min-h-11 rounded-full px-5 py-2 text-sm font-bold transition-colors motion-reduce:transition-none ${
         view === v ? "bg-primary-800 text-ink-inverse" : "text-primary-800 hover:bg-primary-50"
       }`}
     >
@@ -158,7 +158,13 @@ function ResultsPicker({ assignments, terms }: { assignments: Assignments; terms
           </h2>
           <p className="mt-1 text-sm text-ink-muted">{gridCopy.commentsHint}</p>
           <div className="mt-4">
-            <SheetLoader key={`${assignment.id}-${term.id}`} classId={assignment.school_class} subject={assignment.subject} term={term} />
+            <SheetLoader
+              key={`${assignment.id}-${term.id}`}
+              classId={assignment.school_class}
+              subject={assignment.subject}
+              term={term}
+              onDirtyChange={onDirtyChange}
+            />
           </div>
         </>
       )}
@@ -176,7 +182,17 @@ function GridLoader({ classId, termId, onDirtyChange }: { classId: number; termI
   );
 }
 
-function SheetLoader({ classId, subject, term }: { classId: number; subject: number; term: Terms[number] }) {
+function SheetLoader({
+  classId,
+  subject,
+  term,
+  onDirtyChange,
+}: {
+  classId: number;
+  subject: number;
+  term: Terms[number];
+  onDirtyChange: (dirty: boolean) => void;
+}) {
   const load = useCallback(
     () => Promise.all([getClass(classId), getResults({ school_class: classId, subject, term: term.id })]),
     [classId, subject, term.id],
@@ -184,7 +200,9 @@ function SheetLoader({ classId, subject, term }: { classId: number; subject: num
   const state = useApi(load);
   return (
     <AsyncView state={state} reload={state.reload}>
-      {([cls, results]) => <MarkSheet cls={cls} subject={subject} term={term} initialResults={results} />}
+      {([cls, results]) => (
+        <MarkSheet cls={cls} subject={subject} term={term} initialResults={results} onDirtyChange={onDirtyChange} />
+      )}
     </AsyncView>
   );
 }
