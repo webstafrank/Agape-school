@@ -6,38 +6,17 @@ Motto: "Your future is here." (Use it in the hero, footer, and page metadata.)
 
 ## Architecture (monorepo)
 
-- `frontend/` — Next.js 15 (App Router) + React + TypeScript + Tailwind CSS.
-  Deploys to Vercel. Animations with framer-motion. Calls the backend API.
-- `backend/` — Django 5 + Django REST Framework + PostgreSQL.
-  Deploys to Railway (or Render). Handles auth (JWT), students, staff,
-  classes, results, announcements, gallery media metadata.
+- `frontend/` (Next.js) deploys to Vercel; `backend/` (Django/DRF) deploys to
+  Railway (or Render). The frontend only talks to the backend API.
 - Media (photos/videos) uploads go to cloud storage (e.g. Cloudinary or S3);
   never commit media binaries to the repo.
 
-## Commands (use these to verify your own work)
+## Commands and deploy
 
-Frontend (run inside `frontend/`):
-- `npm run dev` — dev server on http://localhost:3000
-- `npm test` — unit tests (Vitest + React Testing Library). Must pass.
-- `npm run typecheck` — tsc --noEmit. Must report 0 errors.
-- `npm run lint` — ESLint. Must report 0 errors.
-- `npm run build` — production build. Must succeed before any deploy.
-
-Backend (run inside `backend/`, with the venv activated):
-- `python manage.py runserver` — dev API on http://localhost:8000
-- `pytest` — backend tests. Must pass.
-- `python manage.py makemigrations --check --dry-run` — fails if models
-  changed without a migration. Must be clean.
-- `python manage.py check --deploy` — Django deploy checks. Fix warnings
-  about SECRET_KEY, DEBUG, and ALLOWED_HOSTS before any deploy.
-
-Deploy:
-- Frontend: pushed to `main` auto-deploys via Vercel. Manual: `vercel --prod`.
-- Backend: pushed to `main` auto-deploys via Railway. Run
-  `python manage.py migrate` against production DB as part of deploy.
-- After every deploy, verify: `GET https://<backend-domain>/api/health/`
-  returns 200, and the production homepage returns 200 and contains
-  "Your future is here".
+Verification commands and the deploy procedure live in the
+`verify-agape-change` skill. Backend commands need the venv activated.
+Fix `check --deploy` warnings about SECRET_KEY, DEBUG, and ALLOWED_HOSTS
+before any deploy.
 
 ## Definition of done
 

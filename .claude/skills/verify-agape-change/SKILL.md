@@ -49,7 +49,14 @@ report the error instead of thrashing.
 - Images use next/image; videos are lazy and muted by default.
 - No console errors or React warnings in test output.
 
-## 5. Deploy verification (only when a deploy happened)
+## 5. Deploy and deploy verification (only when deploying)
+
+- Frontend: pushed to `main` auto-deploys via Vercel. Manual: `vercel --prod`.
+- Backend: pushed to `main` auto-deploys via Railway. Run
+  `python manage.py migrate` against the production DB as part of deploy.
+- `npm run build` must succeed before any deploy.
+
+After every deploy:
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}" https://<backend-domain>/api/health/   # expect 200
